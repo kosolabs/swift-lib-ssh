@@ -12,7 +12,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "🔨 Building SSH test server Docker image..."
-docker build -f Tests/SwiftLibSSHTests/Resources/ssh-test-server.Dockerfile -t ssh-test-server Tests/SwiftLibSSHTests/Resources/
+docker build -t ssh-test-server Tests/Server
 
 echo "🚀 Starting SSH test server..."
 docker run -d --name ssh-test-server -p 2222:22 ssh-test-server
