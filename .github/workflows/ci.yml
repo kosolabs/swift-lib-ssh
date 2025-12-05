@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  functional-tests:
+    name: Functional Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install libssh
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssh-dev
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: "6.2"
+    
+    - name: Build SSH test server
+      run: docker build -t ssh-test-server Tests/Server
+    
+    - name: Start SSH test server
+      run: docker run -d --name ssh-test-server -p 2222:22 ssh-test-server
+    
+    - name: Run tests
+      run: swift test
+    
+    - name: Stop SSH test server
+      if: always()
+      run: |
+        docker stop ssh-test-server || true
+        docker rm ssh-test-server || true
