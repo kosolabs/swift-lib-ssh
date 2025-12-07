@@ -4,12 +4,13 @@ import XCTest
 
 final class FunctionalTests: XCTestCase {
   func testPasswordAuthentication() async throws {
-    let client = try SSHClient.connect(
+    let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass"
     )
+    defer { client.close() }
 
     let command = "whoami"
-    let output = try client.execute(command)
+    let output = try await client.execute(command)
 
     XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), "myuser")
   }
@@ -17,12 +18,13 @@ final class FunctionalTests: XCTestCase {
   func testPrivateKeyAuthentication() async throws {
     let privateKeyPath = Bundle.module.path(
       forResource: "id_ed25519", ofType: nil, inDirectory: "Resources")!
-    let client = try SSHClient.connect(
+    let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath
     )
+    defer { client.close() }
 
     let command = "whoami"
-    let output = try client.execute(command)
+    let output = try await client.execute(command)
 
     XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), "myuser")
   }
@@ -30,23 +32,25 @@ final class FunctionalTests: XCTestCase {
   func testConnectedStatus() async throws {
     let privateKeyPath = Bundle.module.path(
       forResource: "id_ed25519", ofType: nil, inDirectory: "Resources")!
-    let client = try SSHClient.connect(
+    let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath)
 
-    XCTAssertTrue(client.connected)
+    XCTAssertTrue(client.isConnected())
+
     client.close()
-    XCTAssertFalse(client.connected)
+
+    XCTAssertFalse(client.isConnected())
   }
 
   func testExecuteThrowsAfterClose() async throws {
     let privateKeyPath = Bundle.module.path(
       forResource: "id_ed25519", ofType: nil, inDirectory: "Resources")!
-    let client = try SSHClient.connect(
+    let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath)
 
     client.close()
 
-    XCTAssertThrowsError(try client.execute("whoami")) { error in
+    await XCTAsyncAssertThrowsError(try await client.execute("whoami")) { error in
       guard let sshError = error as? SSHClientError else {
         XCTFail("Expected SSHClientError, got \(type(of: error))")
         return
