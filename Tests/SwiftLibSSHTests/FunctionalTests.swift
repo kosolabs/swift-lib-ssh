@@ -7,7 +7,7 @@ final class FunctionalTests: XCTestCase {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass"
     )
-    defer { client.close() }
+    defer { Task { await client.close() } }
 
     let command = "whoami"
     let output = try await client.execute(command)
@@ -21,7 +21,7 @@ final class FunctionalTests: XCTestCase {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath
     )
-    defer { client.close() }
+    defer { Task { await client.close() } }
 
     let command = "whoami"
     let output = try await client.execute(command)
@@ -35,11 +35,11 @@ final class FunctionalTests: XCTestCase {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath)
 
-    XCTAssertTrue(client.isConnected())
+    await XCTAsyncAssertTrue(await client.isConnected())
 
-    client.close()
+    await client.close()
 
-    XCTAssertFalse(client.isConnected())
+    await XCTAsyncAssertFalse(await client.isConnected())
   }
 
   func testExecuteThrowsAfterClose() async throws {
@@ -48,7 +48,7 @@ final class FunctionalTests: XCTestCase {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath)
 
-    client.close()
+    await client.close()
 
     await XCTAsyncAssertThrowsError(try await client.execute("whoami")) { error in
       guard let sshError = error as? SSHClientError else {

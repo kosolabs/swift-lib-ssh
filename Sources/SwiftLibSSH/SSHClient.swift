@@ -8,7 +8,7 @@ public enum SSHClientError: Error {
   case sessionError(String)
 }
 
-final public class SSHClient {
+final public class SSHClient: Sendable {
   private let session: SSHSession
 
   private init(host: String, port: UInt32 = 22) async throws {
@@ -77,7 +77,7 @@ final public class SSHClient {
     guard FileManager.default.fileExists(atPath: privateKeyPath) else {
       throw SSHClientError.authenticationFailed("Private key file not found: \(privateKeyPath)")
     }
-    let privateKey = try session.pkiImportPrivkeyFile(privateKeyPath, passphrase)
+    let privateKey = try await session.pkiImportPrivkeyFile(privateKeyPath, passphrase)
     try await session.userauthPublickey(user, privateKey)
   }
 
@@ -93,25 +93,24 @@ final public class SSHClient {
     return client
   }
 
-  public func isConnected() -> Bool {
-    return session.isConnected()
+  public func isConnected() async -> Bool {
+    return await session.isConnected()
   }
 
-  private func isConnectedOrThrow() throws {
-    if !isConnected() {
+  private func isConnectedOrThrow() async throws {
+    if await !isConnected() {
       throw SSHClientError.sessionError("SSH session is closed")
     }
   }
 
-  public func close() {
-    session.disconnect()
+  public func close() async {
+    await session.disconnect()
   }
 
   public func execute(_ command: String) async throws -> String {
-    try isConnectedOrThrow()
+    try await isConnectedOrThrow()
 
-    let channel = try session.newChannel()
-    defer { channel.close() }
+    let channel = try await session.channelNew()
     try await channel.openSession()
     try await channel.requestExec(command)
 
@@ -125,6 +124,7 @@ final public class SSHClient {
       }
     }
 
+    await channel.close()
     return output
   }
 }
