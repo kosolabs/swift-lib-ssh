@@ -12,6 +12,9 @@ let package = Package(
       targets: ["SwiftLibSSH"]
     )
   ],
+  dependencies: [
+    .package(url: "https://github.com/angu-software/SwiftAsyncAssert.git", from: "1.1.0")
+  ],
   targets: [
     .systemLibrary(
       name: "CLibSSH",
@@ -26,7 +29,10 @@ let package = Package(
     ),
     .testTarget(
       name: "SwiftLibSSHTests",
-      dependencies: ["SwiftLibSSH"],
+      dependencies: [
+        "SwiftLibSSH",
+        .product(name: "SwiftAsyncAssert", package: "SwiftAsyncAssert"),
+      ],
       resources: [.copy("Resources")]
     ),
   ]
