@@ -1,0 +1,17 @@
+services:
+  ssh-test-server:
+    build:
+      dockerfile: Dockerfile
+    container_name: swift-lib-ssh-test-server
+    ports:
+      - "2222:22"
+    environment:
+      - USERNAME=myuser
+      - PASSWORD=mypass
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "22"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
