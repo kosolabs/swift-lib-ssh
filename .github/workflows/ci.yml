@@ -23,17 +23,12 @@ jobs:
       with:
         swift-version: "6.2"
     
-    - name: Build SSH test server
-      run: docker build -t ssh-test-server Tests/Server
-    
     - name: Start SSH test server
-      run: docker run -d --name ssh-test-server -p 2222:22 ssh-test-server
+      run: docker compose -f Tests/Server/docker-compose.yml up -d
     
     - name: Run tests
       run: swift test
     
     - name: Stop SSH test server
       if: always()
-      run: |
-        docker stop ssh-test-server || true
-        docker rm ssh-test-server || true
+      run: docker compose -f Tests/Server/docker-compose.yml down

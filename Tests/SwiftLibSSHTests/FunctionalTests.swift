@@ -1,9 +1,10 @@
-import SwiftAsyncAssert
-import XCTest
+import Foundation
+import Testing
 
 @testable import SwiftLibSSH
 
-final class FunctionalTests: XCTestCase {
+struct FunctionalTests {
+  @Test
   func testPasswordAuthentication() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass"
@@ -13,12 +14,13 @@ final class FunctionalTests: XCTestCase {
     let command = "whoami"
     let output = try await client.execute(command)
 
-    XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), "myuser")
+    #expect(output.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) == "myuser")
   }
 
+  @Test
   func testPrivateKeyAuthentication() async throws {
     let privateKeyPath = Bundle.module.path(
-      forResource: "id_ed25519", ofType: nil, inDirectory: "Resources")!
+      forResource: "id_ed25519", ofType: "", inDirectory: "Resources")!
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath
     )
@@ -27,41 +29,43 @@ final class FunctionalTests: XCTestCase {
     let command = "whoami"
     let output = try await client.execute(command)
 
-    XCTAssertEqual(output.trimmingCharacters(in: .whitespacesAndNewlines), "myuser")
+    #expect(output.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) == "myuser")
   }
 
+  @Test
   func testConnectedStatus() async throws {
     let privateKeyPath = Bundle.module.path(
-      forResource: "id_ed25519", ofType: nil, inDirectory: "Resources")!
+      forResource: "id_ed25519", ofType: "", inDirectory: "Resources")!
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath)
 
-    await AsyncAssertTrue(await client.isConnected())
+    #expect(await client.isConnected())
 
     await client.close()
 
-    await AsyncAssertFalse(await client.isConnected())
+    #expect(!(await client.isConnected()))
   }
 
+  @Test
   func testExecuteThrowsAfterClose() async throws {
     let privateKeyPath = Bundle.module.path(
-      forResource: "id_ed25519", ofType: nil, inDirectory: "Resources")!
+      forResource: "id_ed25519", ofType: "", inDirectory: "Resources")!
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath)
 
     await client.close()
 
-    await AsyncAssertThrowsError(try await client.execute("whoami")) { error in
-      guard let sshError = error as? SSHClientError else {
-        XCTFail("Expected SSHClientError, got \(type(of: error))")
-        return
-      }
-
-      if case .sessionError(let message) = sshError {
-        XCTAssertEqual(message, "SSH session is closed")
+    do {
+      let _ = try await client.execute("whoami")
+      Issue.record("Expected error to be thrown")
+    } catch let error as SSHClientError {
+      if case .sessionError(let message) = error {
+        #expect(message == "SSH session is closed")
       } else {
-        XCTFail("Expected sessionError, got \(sshError)")
+        Issue.record("Expected sessionError, got \(error)")
       }
+    } catch {
+      Issue.record("Expected SSHClientError, got \(type(of: error))")
     }
   }
 }
