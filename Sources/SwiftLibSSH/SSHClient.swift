@@ -77,8 +77,9 @@ final public class SSHClient: Sendable {
     guard FileManager.default.fileExists(atPath: privateKeyPath) else {
       throw SSHClientError.authenticationFailed("Private key file not found: \(privateKeyPath)")
     }
-    let privateKey = try await session.pkiImportPrivkeyFile(privateKeyPath, passphrase)
-    try await session.userauthPublickey(user, privateKey)
+    try await session.withPkiImportPrivkeyFile(privateKeyPath, passphrase) { privateKey in
+      try await session.userauthPublickey(user, privateKey)
+    }
   }
 
   public static func connect(
@@ -105,26 +106,27 @@ final public class SSHClient: Sendable {
 
   public func close() async {
     await session.disconnect()
+    await session.free()
   }
 
   public func execute(_ command: String) async throws -> String {
     try await isConnectedOrThrow()
 
-    let channel = try await session.channelNew()
-    try await channel.openSession()
-    try await channel.requestExec(command)
+    return try await session.withChannel { channel in
+      try await channel.openSession()
+      try await channel.requestExec(command)
 
-    var output = ""
+      var output = ""
 
-    while true {
-      let data = try await channel.read()
-      if data.isEmpty { break }
-      if let next = String(data: data, encoding: .utf8) {
-        output.append(next)
+      while true {
+        let data = try await channel.read()
+        if data.isEmpty { break }
+        if let next = String(data: data, encoding: .utf8) {
+          output.append(next)
+        }
       }
-    }
 
-    await channel.close()
-    return output
+      return output
+    }
   }
 }
