@@ -1,55 +1,31 @@
 import CLibSSH
 import Foundation
 
-struct SSHKeyHandle: @unchecked Sendable {
-  let key: ssh_key
-}
-
 final class SSHKey: @unchecked Sendable {
   let session: SSHSession
-  let handle: SSHKeyHandle
+  let key: ssh_key
 
   init(session: SSHSession, key: ssh_key) {
     self.session = session
-    self.handle = SSHKeyHandle(key: key)
+    self.key = key
   }
 
-  deinit {
-    let handle = self.handle
-    let session: SSHSession = self.session
-    Task {
-      await session.keyFree(handle.key)
-    }
+  func free() async {
+    await session.keyFree(key)
   }
-
-  var key: ssh_key {
-    handle.key
-  }
-}
-
-struct SSHChannelHandle: @unchecked Sendable {
-  let channel: ssh_channel
 }
 
 final class SSHChannel: @unchecked Sendable {
   let session: SSHSession
-  let handle: SSHChannelHandle
+  let channel: ssh_channel
 
   init(session: SSHSession, channel: ssh_channel) throws {
     self.session = session
-    self.handle = SSHChannelHandle(channel: channel)
+    self.channel = channel
   }
 
-  deinit {
-    let handle = self.handle
-    let session = self.session
-    Task {
-      await session.channelFree(handle.channel)
-    }
-  }
-
-  var channel: ssh_channel {
-    handle.channel
+  func free() async {
+    await session.channelFree(channel)
   }
 
   func openSession() async throws {
@@ -83,27 +59,18 @@ enum SSHError: Error {
   case channelRequestExecFailed(String)
 }
 
-struct SSHSessionHandle: @unchecked Sendable {
-  let session: ssh_session
-}
-
 final actor SSHSession {
-  let handle: SSHSessionHandle
+  let session: ssh_session
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
       throw SSHError.newFailed
     }
-    self.handle = SSHSessionHandle(session: session)
+    self.session = session
   }
 
-  deinit {
-    ssh_disconnect(handle.session)
-    ssh_free(handle.session)
-  }
-
-  var session: ssh_session {
-    handle.session
+  func free() {
+    ssh_free(session)
   }
 
   // MARK: - Helper
@@ -164,6 +131,15 @@ final actor SSHSession {
 
   // MARK: - Key Operations
 
+  func withPkiImportPrivkeyFile<T>(
+    _ privateKeyPath: String, _ passphrase: String? = nil,
+    _ body: (SSHKey) async throws -> T
+  ) async throws -> T {
+    let key = try pkiImportPrivkeyFile(privateKeyPath, passphrase)
+    defer { keyFree(key.key) }
+    return try await body(key)
+  }
+
   func pkiImportPrivkeyFile(_ privateKeyPath: String, _ passphrase: String? = nil) throws -> SSHKey
   {
     var key: ssh_key?
@@ -181,15 +157,19 @@ final actor SSHSession {
 
   // MARK: - Channel Operations
 
+  func withChannel<T>(
+    _ body: (SSHChannel) async throws -> T
+  ) async throws -> T {
+    let channel = try channelNew()
+    defer { channelFree(channel.channel) }
+    return try await body(channel)
+  }
+
   func channelNew() throws -> SSHChannel {
     guard let channel = ssh_channel_new(session) else {
       throw SSHError.newFailed
     }
     return try SSHChannel(session: self, channel: channel)
-  }
-
-  func channelClose(_ channel: ssh_channel) {
-    _ = ssh_channel_close(channel)
   }
 
   func channelFree(_ channel: ssh_channel) {
@@ -200,6 +180,10 @@ final actor SSHSession {
     guard ssh_channel_open_session(channel) == SSH_OK else {
       throw SSHError.channelOpenSessionFailed(getError())
     }
+  }
+
+  func channelClose(_ channel: ssh_channel) {
+    _ = ssh_channel_close(channel)
   }
 
   func channelRequestExec(_ channel: ssh_channel, _ command: String) throws {
