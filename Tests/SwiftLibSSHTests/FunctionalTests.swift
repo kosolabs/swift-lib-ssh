@@ -1,3 +1,4 @@
+import SwiftAsyncAssert
 import XCTest
 
 @testable import SwiftLibSSH
@@ -35,11 +36,11 @@ final class FunctionalTests: XCTestCase {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: privateKeyPath)
 
-    await XCTAsyncAssertTrue(await client.isConnected())
+    await AsyncAssertTrue(await client.isConnected())
 
     await client.close()
 
-    await XCTAsyncAssertFalse(await client.isConnected())
+    await AsyncAssertFalse(await client.isConnected())
   }
 
   func testExecuteThrowsAfterClose() async throws {
@@ -50,7 +51,7 @@ final class FunctionalTests: XCTestCase {
 
     await client.close()
 
-    await XCTAsyncAssertThrowsError(try await client.execute("whoami")) { error in
+    await AsyncAssertThrowsError(try await client.execute("whoami")) { error in
       guard let sshError = error as? SSHClientError else {
         XCTFail("Expected SSHClientError, got \(type(of: error))")
         return
