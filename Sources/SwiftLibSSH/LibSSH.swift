@@ -1,47 +1,47 @@
 import CLibSSH
 import Foundation
 
-final class SSHKey: @unchecked Sendable {
+final class SSHKey: Sendable {
   let session: SSHSession
-  let key: ssh_key
+  let id: UUID
 
-  init(session: SSHSession, key: ssh_key) {
+  init(session: SSHSession, id: UUID) {
     self.session = session
-    self.key = key
+    self.id = id
   }
 
   func free() async {
-    await session.keyFree(key)
+    await session.keyFree(id)
   }
 }
 
-final class SSHChannel: @unchecked Sendable {
+final class SSHChannel: Sendable {
   let session: SSHSession
-  let channel: ssh_channel
+  let id: UUID
 
-  init(session: SSHSession, channel: ssh_channel) throws {
+  init(session: SSHSession, id: UUID) {
     self.session = session
-    self.channel = channel
+    self.id = id
   }
 
   func free() async {
-    await session.channelFree(channel)
+    await session.channelFree(id)
   }
 
   func openSession() async throws {
-    try await session.channelOpenSession(channel)
+    try await session.channelOpenSession(id)
   }
 
   func requestExec(_ command: String) async throws {
-    try await session.channelRequestExec(channel, command)
+    try await session.channelRequestExec(id, command)
   }
 
   func read(bufferSize: Int = 1024) async throws -> Data {
-    try await session.channelRead(channel, bufferSize: bufferSize)
+    try await session.channelRead(id, bufferSize: bufferSize)
   }
 
   func close() async {
-    await session.channelClose(channel)
+    await session.channelClose(id)
   }
 }
 
@@ -61,6 +61,8 @@ enum SSHError: Error {
 
 final actor SSHSession {
   let session: ssh_session
+  private var keys: [UUID: ssh_key] = [:]
+  private var channels: [UUID: ssh_channel] = [:]
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
@@ -115,7 +117,10 @@ final actor SSHSession {
   }
 
   func userauthPublickey(_ user: String, _ privateKey: SSHKey) throws {
-    guard ssh_userauth_publickey(session, user, privateKey.key) == SSH_AUTH_SUCCESS.rawValue
+    guard let key = keys[privateKey.id] else {
+      throw SSHError.userauthPublickeyFailed("Key not found")
+    }
+    guard ssh_userauth_publickey(session, user, key) == SSH_AUTH_SUCCESS.rawValue
     else {
       throw SSHError.userauthPublickeyFailed(getError())
     }
@@ -136,7 +141,7 @@ final actor SSHSession {
     _ body: (SSHKey) async throws -> T
   ) async throws -> T {
     let key = try pkiImportPrivkeyFile(privateKeyPath, passphrase)
-    defer { keyFree(key.key) }
+    defer { keyFree(key.id) }
     return try await body(key)
   }
 
@@ -148,10 +153,13 @@ final actor SSHSession {
       throw SSHError.pkiImportPrivkeyFile(getError())
     }
 
-    return SSHKey(session: self, key: key!)
+    let id = UUID()
+    keys[id] = key!
+    return SSHKey(session: self, id: id)
   }
 
-  func keyFree(_ key: ssh_key) {
+  func keyFree(_ id: UUID) {
+    guard let key = keys.removeValue(forKey: id) else { return }
     ssh_key_free(key)
   }
 
@@ -161,7 +169,7 @@ final actor SSHSession {
     _ body: (SSHChannel) async throws -> T
   ) async throws -> T {
     let channel = try channelNew()
-    defer { channelFree(channel.channel) }
+    defer { channelFree(channel.id) }
     return try await body(channel)
   }
 
@@ -169,30 +177,43 @@ final actor SSHSession {
     guard let channel = ssh_channel_new(session) else {
       throw SSHError.newFailed
     }
-    return try SSHChannel(session: self, channel: channel)
+    let id = UUID()
+    channels[id] = channel
+    return SSHChannel(session: self, id: id)
   }
 
-  func channelFree(_ channel: ssh_channel) {
+  func channelFree(_ id: UUID) {
+    guard let channel = channels.removeValue(forKey: id) else { return }
     ssh_channel_free(channel)
   }
 
-  func channelOpenSession(_ channel: ssh_channel) throws {
+  func channelOpenSession(_ id: UUID) throws {
+    guard let channel = channels[id] else {
+      throw SSHError.channelOpenSessionFailed("Channel not found")
+    }
     guard ssh_channel_open_session(channel) == SSH_OK else {
       throw SSHError.channelOpenSessionFailed(getError())
     }
   }
 
-  func channelClose(_ channel: ssh_channel) {
+  func channelClose(_ id: UUID) {
+    guard let channel = channels[id] else { return }
     _ = ssh_channel_close(channel)
   }
 
-  func channelRequestExec(_ channel: ssh_channel, _ command: String) throws {
+  func channelRequestExec(_ id: UUID, _ command: String) throws {
+    guard let channel = channels[id] else {
+      throw SSHError.channelRequestExecFailed("Channel not found")
+    }
     guard ssh_channel_request_exec(channel, command) == SSH_OK else {
       throw SSHError.channelRequestExecFailed(getError())
     }
   }
 
-  func channelRead(_ channel: ssh_channel, bufferSize: Int = 1024) throws -> Data {
+  func channelRead(_ id: UUID, bufferSize: Int = 1024) throws -> Data {
+    guard let channel = channels[id] else {
+      throw SSHError.channelReadFailed("Channel not found")
+    }
     var buffer = [CChar](repeating: 0, count: bufferSize)
     let bytesRead = ssh_channel_read(channel, &buffer, UInt32(bufferSize), 0)
 
