@@ -118,9 +118,7 @@ final public class SSHClient: Sendable {
 
       var output = ""
 
-      while true {
-        let data = try await channel.read()
-        if data.isEmpty { break }
+      for try await data in channel.stream() {
         if let next = String(data: data, encoding: .utf8) {
           output.append(next)
         }
