@@ -36,8 +36,14 @@ final class SSHChannel: Sendable {
     try await session.channelRequestExec(id, command)
   }
 
-  func read(bufferSize: Int = 1024) async throws -> Data {
+  func read(bufferSize: Int = 1024) async throws -> Data? {
     try await session.channelRead(id, bufferSize: bufferSize)
+  }
+
+  func stream(bufferSize: Int = 1024) -> AsyncThrowingStream<Data, Error> {
+    AsyncThrowingStream(unfolding: {
+      try await self.read(bufferSize: bufferSize)
+    })
   }
 
   func close() async {
@@ -210,15 +216,22 @@ final actor SSHSession {
     }
   }
 
-  func channelRead(_ id: UUID, bufferSize: Int = 1024) throws -> Data {
+  func channelRead(_ id: UUID, bufferSize: Int = 1024) throws -> Data? {
     guard let channel = channels[id] else {
       throw SSHError.channelReadFailed("Channel not found")
     }
-    var buffer = [CChar](repeating: 0, count: bufferSize)
-    let bytesRead = ssh_channel_read(channel, &buffer, UInt32(bufferSize), 0)
+
+    var buffer = [UInt8](repeating: 0, count: bufferSize)
+    let bytesRead = buffer.withUnsafeMutableBytes { raw in
+      ssh_channel_read(channel, raw.baseAddress, UInt32(bufferSize), 0)
+    }
 
     if bytesRead < 0 {
       throw SSHError.channelReadFailed(getError())
+    }
+
+    if bytesRead == 0 {
+      return nil
     }
 
     return Data(bytes: buffer, count: Int(bytesRead))
