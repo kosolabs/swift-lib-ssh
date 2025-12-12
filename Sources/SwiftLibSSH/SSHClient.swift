@@ -113,18 +113,19 @@ final public class SSHClient: Sendable {
     try await isConnectedOrThrow()
 
     return try await session.withChannel { channel in
-      try await channel.openSession()
-      try await channel.requestExec(command)
+      try await channel.withSession {
+        try await channel.requestExec(command)
 
-      var output = ""
+        var output = ""
 
-      for try await data in channel.stream() {
-        if let next = String(data: data, encoding: .utf8) {
-          output.append(next)
+        for try await data in await channel.stream() {
+          if let next = String(data: data, encoding: .utf8) {
+            output.append(next)
+          }
         }
-      }
 
-      return output
+        return output
+      }
     }
   }
 }

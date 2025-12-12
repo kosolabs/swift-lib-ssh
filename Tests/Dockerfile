@@ -25,9 +25,12 @@ RUN chmod 700 /home/$USERNAME/.ssh
 RUN chown $USERNAME:$USERNAME /home/$USERNAME/.ssh
 
 # Copy test SSH key (will be generated separately)
-COPY authorized_keys /home/$USERNAME/.ssh/authorized_keys
+COPY Data/authorized_keys /home/$USERNAME/.ssh/authorized_keys
 RUN chmod 600 /home/$USERNAME/.ssh/authorized_keys
 RUN chown $USERNAME:$USERNAME /home/$USERNAME/.ssh/authorized_keys
+
+# Copy test data
+COPY Data/lorem-ipsum.txt /home/$USERNAME/lorem-ipsum.txt
 
 # Expose SSH port
 EXPOSE 22

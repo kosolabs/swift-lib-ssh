@@ -27,7 +27,6 @@ let package = Package(
     .testTarget(
       name: "SwiftLibSSHTests",
       dependencies: ["SwiftLibSSH"],
-      resources: [.copy("Resources")]
     ),
   ]
 )

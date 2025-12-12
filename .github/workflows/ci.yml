@@ -24,11 +24,11 @@ jobs:
         swift-version: "6.2"
     
     - name: Start SSH test server
-      run: docker compose -f Tests/Server/docker-compose.yml up -d
+      run: docker compose -f Tests/docker-compose.yml up -d
     
     - name: Run tests
       run: swift test
     
     - name: Stop SSH test server
       if: always()
-      run: docker compose -f Tests/Server/docker-compose.yml down
+      run: docker compose -f Tests/docker-compose.yml down

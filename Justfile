@@ -1,10 +1,13 @@
 default: test
 
-up:
-    docker compose -f Tests/Server/docker-compose.yml up -d
+test-server-build:
+    docker compose -f Tests/docker-compose.yml build
 
-down:
-    docker compose -f Tests/Server/docker-compose.yml down
+test-server-up:
+    docker compose -f Tests/docker-compose.yml up -d
 
-test: up
+test-server-down:
+    docker compose -f Tests/docker-compose.yml down
+
+test: test-server-up
     swift test
