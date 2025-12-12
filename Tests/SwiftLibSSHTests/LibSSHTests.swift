@@ -7,7 +7,7 @@ enum TestError: Error {
   case noData
 }
 
-class LibSSHTests {
+struct LibSSHTests {
   @Test
   func testPartialReadOfChannel() async throws {
     let bs = 512
@@ -27,7 +27,7 @@ class LibSSHTests {
           "dd if=/dev/urandom bs=\(bs) count=\(count) of=/dev/stdout")
 
         let task = Task {
-          let stream = await channel.stream()
+          let stream = channel.stream()
           var result = 0
           var iterator = stream.makeAsyncIterator()
           while let data = try await iterator.next() {
@@ -63,7 +63,7 @@ class LibSSHTests {
         try await channel.requestExec(
           "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout")
 
-        for try await data: Data in await channel.stream() {
+        for try await data: Data in channel.stream() {
           return data
         }
 

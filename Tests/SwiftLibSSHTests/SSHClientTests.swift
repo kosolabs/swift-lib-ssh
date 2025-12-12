@@ -3,7 +3,7 @@ import Testing
 
 @testable import SwiftLibSSH
 
-class SSHClientTests {
+struct SSHClientTests {
   @Test
   func testExecute() async throws {
     let client = try await SSHClient.connect(
