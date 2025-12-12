@@ -28,26 +28,33 @@ final class SSHChannel: Sendable {
     await session.channelFree(id)
   }
 
+  func withSession<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
+    try await session.withChannelSession(id, body)
+  }
+
   func openSession() async throws {
     try await session.channelOpenSession(id)
+  }
+
+  func close() async {
+    await session.channelClose(id)
   }
 
   func requestExec(_ command: String) async throws {
     try await session.channelRequestExec(id, command)
   }
 
-  func read(bufferSize: Int = 1024) async throws -> Data? {
-    try await session.channelRead(id, bufferSize: bufferSize)
+  func read(buffer: inout [UInt8]) async throws -> Data? {
+    try await session.channelRead(id, buffer: &buffer)
   }
 
-  func stream(bufferSize: Int = 1024) -> AsyncThrowingStream<Data, Error> {
-    AsyncThrowingStream(unfolding: {
-      try await self.read(bufferSize: bufferSize)
-    })
+  func read(bufferSize: Int = 1248) async throws -> Data? {
+    var buffer = [UInt8](repeating: 0, count: bufferSize)
+    return try await read(buffer: &buffer)
   }
 
-  func close() async {
-    await session.channelClose(id)
+  func stream(bufferSize: Int = 1248) async -> AsyncThrowingStream<Data, Error> {
+    return await session.channelStream(id, bufferSize: bufferSize)
   }
 }
 
@@ -63,10 +70,11 @@ enum SSHError: Error {
   case channelReadFailed(String)
   case channelOpenSessionFailed(String)
   case channelRequestExecFailed(String)
+  case channelNotFound
 }
 
 final actor SSHSession {
-  let session: ssh_session
+  var session: ssh_session?
   private var keys: [UUID: ssh_key] = [:]
   private var channels: [UUID: ssh_channel] = [:]
 
@@ -79,6 +87,7 @@ final actor SSHSession {
 
   func free() {
     ssh_free(session)
+    session = nil
   }
 
   // MARK: - Helper
@@ -171,9 +180,7 @@ final actor SSHSession {
 
   // MARK: - Channel Operations
 
-  func withChannel<T>(
-    _ body: (SSHChannel) async throws -> T
-  ) async throws -> T {
+  func withChannel<T>(_ body: (SSHChannel) async throws -> T) async throws -> T {
     let channel = try channelNew()
     defer { channelFree(channel.id) }
     return try await body(channel)
@@ -188,40 +195,65 @@ final actor SSHSession {
     return SSHChannel(session: self, id: id)
   }
 
-  func channelFree(_ id: UUID) {
-    guard let channel = channels.removeValue(forKey: id) else { return }
+  private func channelFree(_ channel: ssh_channel) {
     ssh_channel_free(channel)
   }
 
-  func channelOpenSession(_ id: UUID) throws {
+  func channelFree(_ id: UUID) {
+    guard let channel = channels.removeValue(forKey: id) else { return }
+    channelFree(channel)
+  }
+
+  private func withChannelSession<T>(
+    _ channel: ssh_channel, _ body: () async throws -> T
+  ) async throws -> T {
+    try channelOpenSession(channel)
+    defer { channelClose(channel) }
+    return try await body()
+  }
+
+  private func getChannel(_ id: UUID) throws -> ssh_channel {
     guard let channel = channels[id] else {
-      throw SSHError.channelOpenSessionFailed("Channel not found")
+      throw SSHError.channelNotFound
     }
+    return channel
+  }
+
+  func withChannelSession<T>(_ id: UUID, _ body: () async throws -> T) async throws -> T {
+    return try await withChannelSession(getChannel(id), body)
+  }
+
+  private func channelOpenSession(_ channel: ssh_channel) throws {
     guard ssh_channel_open_session(channel) == SSH_OK else {
       throw SSHError.channelOpenSessionFailed(getError())
     }
   }
 
-  func channelClose(_ id: UUID) {
-    guard let channel = channels[id] else { return }
+  func channelOpenSession(_ id: UUID) throws {
+    try channelOpenSession(getChannel(id))
+  }
+
+  private func channelClose(_ channel: ssh_channel) {
     _ = ssh_channel_close(channel)
   }
 
-  func channelRequestExec(_ id: UUID, _ command: String) throws {
-    guard let channel = channels[id] else {
-      throw SSHError.channelRequestExecFailed("Channel not found")
-    }
+  func channelClose(_ id: UUID) {
+    guard let channel = channels[id] else { return }
+    channelClose(channel)
+  }
+
+  private func channelRequestExec(_ channel: ssh_channel, _ command: String) throws {
     guard ssh_channel_request_exec(channel, command) == SSH_OK else {
       throw SSHError.channelRequestExecFailed(getError())
     }
   }
 
-  func channelRead(_ id: UUID, bufferSize: Int = 1024) throws -> Data? {
-    guard let channel = channels[id] else {
-      throw SSHError.channelReadFailed("Channel not found")
-    }
+  func channelRequestExec(_ id: UUID, _ command: String) throws {
+    try channelRequestExec(getChannel(id), command)
+  }
 
-    var buffer = [UInt8](repeating: 0, count: bufferSize)
+  private func channelRead(_ channel: ssh_channel, buffer: inout [UInt8]) throws -> Data? {
+    let bufferSize = buffer.count
     let bytesRead = buffer.withUnsafeMutableBytes { raw in
       ssh_channel_read(channel, raw.baseAddress, UInt32(bufferSize), 0)
     }
@@ -235,5 +267,43 @@ final actor SSHSession {
     }
 
     return Data(bytes: buffer, count: Int(bytesRead))
+  }
+
+  func channelRead(_ id: UUID, buffer: inout [UInt8]) throws -> Data? {
+    return try channelRead(getChannel(id), buffer: &buffer)
+  }
+
+  func channelStream(
+    _ id: UUID, bufferSize: Int = 1248
+  ) -> AsyncThrowingStream<Data, Error> {
+    AsyncThrowingStream { continuation in
+      guard let channel = channels[id] else {
+        continuation.finish(throwing: SSHError.channelNotFound)
+        return
+      }
+
+      let task = Task {
+        var buffer = [UInt8](repeating: 0, count: bufferSize)
+        while !Task.isCancelled {
+          do {
+            guard let data = try channelRead(channel, buffer: &buffer) else {
+              continuation.finish()
+              return
+            }
+            continuation.yield(data)
+            await Task.yield()
+          } catch {
+            continuation.finish(throwing: error)
+            return
+          }
+        }
+      }
+
+      continuation.onTermination = { @Sendable termination in
+        if case .cancelled = termination {
+          task.cancel()
+        }
+      }
+    }
   }
 }
