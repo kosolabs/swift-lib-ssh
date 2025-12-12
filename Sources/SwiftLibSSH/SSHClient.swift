@@ -8,7 +8,7 @@ public enum SSHClientError: Error {
   case sessionError(String)
 }
 
-final public class SSHClient: Sendable {
+struct SSHClient: Sendable {
   private let session: SSHSession
 
   private init(host: String, port: UInt32 = 22) async throws {
@@ -118,7 +118,7 @@ final public class SSHClient: Sendable {
 
         var output = ""
 
-        for try await data in await channel.stream() {
+        for try await data in channel.stream() {
           if let next = String(data: data, encoding: .utf8) {
             output.append(next)
           }

@@ -1,9 +1,9 @@
 import CLibSSH
 import Foundation
 
-final class SSHKey: Sendable {
-  let session: SSHSession
-  let id: UUID
+struct SSHKey {
+  fileprivate let session: SSHSession
+  fileprivate let id: UUID
 
   init(session: SSHSession, id: UUID) {
     self.session = session
@@ -15,9 +15,35 @@ final class SSHKey: Sendable {
   }
 }
 
-final class SSHChannel: Sendable {
-  let session: SSHSession
-  let id: UUID
+struct SSHChannelData: AsyncSequence {
+  fileprivate let channel: SSHChannel
+  fileprivate let bufferSize: Int
+
+  struct SSHChannelDataIterator: AsyncIteratorProtocol {
+    let channel: SSHChannel
+    var buffer: [UInt8]
+
+    init(channel: SSHChannel, bufferSize: Int) {
+      self.channel = channel
+      self.buffer = [UInt8](repeating: 0, count: bufferSize)
+    }
+
+    mutating func next() async throws -> Data? {
+      if Task.isCancelled {
+        return nil
+      }
+      return try await channel.read(buffer: &buffer)
+    }
+  }
+
+  func makeAsyncIterator() -> SSHChannelDataIterator {
+    SSHChannelDataIterator(channel: channel, bufferSize: bufferSize)
+  }
+}
+
+struct SSHChannel {
+  fileprivate let session: SSHSession
+  fileprivate let id: UUID
 
   init(session: SSHSession, id: UUID) {
     self.session = session
@@ -53,8 +79,8 @@ final class SSHChannel: Sendable {
     return try await read(buffer: &buffer)
   }
 
-  func stream(bufferSize: Int = 1248) async -> AsyncThrowingStream<Data, Error> {
-    return await session.channelStream(id, bufferSize: bufferSize)
+  func stream(bufferSize: Int = 1248) -> SSHChannelData {
+    return SSHChannelData(channel: self, bufferSize: bufferSize)
   }
 }
 
@@ -74,9 +100,9 @@ enum SSHError: Error {
 }
 
 final actor SSHSession {
-  var session: ssh_session?
-  private var keys: [UUID: ssh_key] = [:]
-  private var channels: [UUID: ssh_channel] = [:]
+  fileprivate var session: ssh_session?
+  fileprivate var keys: [UUID: ssh_key] = [:]
+  fileprivate var channels: [UUID: ssh_channel] = [:]
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
@@ -271,39 +297,5 @@ final actor SSHSession {
 
   func channelRead(_ id: UUID, buffer: inout [UInt8]) throws -> Data? {
     return try channelRead(getChannel(id), buffer: &buffer)
-  }
-
-  func channelStream(
-    _ id: UUID, bufferSize: Int = 1248
-  ) -> AsyncThrowingStream<Data, Error> {
-    AsyncThrowingStream { continuation in
-      guard let channel = channels[id] else {
-        continuation.finish(throwing: SSHError.channelNotFound)
-        return
-      }
-
-      let task = Task {
-        var buffer = [UInt8](repeating: 0, count: bufferSize)
-        while !Task.isCancelled {
-          do {
-            guard let data = try channelRead(channel, buffer: &buffer) else {
-              continuation.finish()
-              return
-            }
-            continuation.yield(data)
-            await Task.yield()
-          } catch {
-            continuation.finish(throwing: error)
-            return
-          }
-        }
-      }
-
-      continuation.onTermination = { @Sendable termination in
-        if case .cancelled = termination {
-          task.cancel()
-        }
-      }
-    }
   }
 }
