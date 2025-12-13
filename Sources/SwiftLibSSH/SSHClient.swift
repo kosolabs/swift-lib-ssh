@@ -78,7 +78,7 @@ struct SSHClient: Sendable {
       throw SSHClientError.authenticationFailed("Private key file not found: \(privateKeyPath)")
     }
     try await session.withPkiImportPrivkeyFile(privateKeyPath, passphrase) { privateKey in
-      try await session.userauthPublickey(user, privateKey)
+      try await privateKey.auth(user: user)
     }
   }
 
@@ -122,7 +122,7 @@ struct SSHClient: Sendable {
   public func execute(_ command: String) async throws -> String {
     try await isConnectedOrThrow()
 
-    return try await session.withChannel { channel in
+    return try await session.withChannel({ channel in
       try await channel.withSession {
         try await channel.requestExec(command)
 
@@ -136,6 +136,6 @@ struct SSHClient: Sendable {
 
         return output
       }
-    }
+    })
   }
 }
