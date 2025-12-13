@@ -159,16 +159,11 @@ final actor SSHSession {
     ssh_channel_free(channel)
   }
 
-  private func withOpenedChannelSession<T>(
-    _ channel: ssh_channel, perform body: () async throws -> T
-  ) async throws -> T {
+  func withOpenedChannelSession<T>(id: UUID, perform body: () async throws -> T) async throws -> T {
+    let channel = try channel(id: id)
     try openChannelSession(channel: channel)
     defer { closeChannel(channel: channel) }
     return try await body()
-  }
-
-  func withOpenedChannelSession<T>(id: UUID, perform body: () async throws -> T) async throws -> T {
-    return try await withOpenedChannelSession(channel(id: id), perform: body)
   }
 
   private func openChannelSession(channel: ssh_channel) throws {
@@ -190,17 +185,16 @@ final actor SSHSession {
     closeChannel(channel: channel)
   }
 
-  private func execute(onChannel channel: ssh_channel, command: String) throws {
+  func execute(onChannel id: UUID, command: String) throws {
+    let channel = try channel(id: id)
     guard ssh_channel_request_exec(channel, command) == SSH_OK else {
       throw SSHError.channelRequestExecFailed(getError())
     }
   }
 
-  func execute(onChannel id: UUID, command: String) throws {
-    try execute(onChannel: channel(id: id), command: command)
-  }
+  func readChannel(id: UUID, into buffer: inout [UInt8]) throws -> Data? {
+    let channel = try channel(id: id)
 
-  private func readChannel(channel: ssh_channel, into buffer: inout [UInt8]) throws -> Data? {
     let bufferSize = buffer.count
     let bytesRead = buffer.withUnsafeMutableBytes { raw in
       ssh_channel_read(channel, raw.baseAddress, UInt32(bufferSize), 0)
@@ -215,10 +209,6 @@ final actor SSHSession {
     }
 
     return Data(bytes: buffer, count: Int(bytesRead))
-  }
-
-  func readChannel(id: UUID, into buffer: inout [UInt8]) throws -> Data? {
-    return try readChannel(channel: channel(id: id), into: &buffer)
   }
 
   // MARK: - SFTP Operations
