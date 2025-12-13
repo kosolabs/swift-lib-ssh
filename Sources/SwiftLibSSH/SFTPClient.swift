@@ -1,6 +1,6 @@
 import Foundation
 
-struct SFTPClient {
+public struct SFTPClient: Sendable {
   let session: SSHSession
   let id: UUID
 
@@ -10,10 +10,10 @@ struct SFTPClient {
   }
 
   func close() async {
-    await session.sftpFree(id)
+    await session.freeSftp(id: id)
   }
 
-  func mkdir(path: String, mode: mode_t = 0o755) async throws {
-    try await session.sftpMkdir(id, path, mode: mode)
+  func makeDirectory(atPath path: String, mode: mode_t = 0o755) async throws {
+    try await session.makeDirectory(id: id, atPath: path, mode: mode)
   }
 }

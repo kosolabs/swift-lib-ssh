@@ -9,7 +9,7 @@ struct SSHClientTests {
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
     let command = "whoami"
-    let actual = try await client.execute(command)
+    let actual = try await client.execute(command: command)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     let expected = "myuser"
@@ -23,7 +23,7 @@ struct SSHClientTests {
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
     let command = "cat lorem-ipsum.txt"
-    let actual = try await client.execute(command)
+    let actual = try await client.execute(command: command)
 
     let expected = try String(contentsOfFile: "Tests/Data/lorem-ipsum.txt", encoding: .utf8)
     #expect(actual == expected)
@@ -37,7 +37,7 @@ struct SSHClientTests {
     )
 
     let command = "whoami"
-    let actual = try await client.execute(command)
+    let actual = try await client.execute(command: command)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     let expected = "myuser"
@@ -50,23 +50,23 @@ struct SSHClientTests {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    #expect(await client.isConnected())
+    #expect(await client.isConnected)
 
     await client.close()
 
-    #expect(!(await client.isConnected()))
+    #expect(!(await client.isConnected))
   }
 
   @Test func multipleCallsToClose() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    #expect(await client.isConnected())
+    #expect(await client.isConnected)
 
     await client.close()
     await client.close()
 
-    #expect(!(await client.isConnected()))
+    #expect(!(await client.isConnected))
   }
 
   @Test func executeThrowsAfterClose() async throws {
@@ -76,7 +76,7 @@ struct SSHClientTests {
     await client.close()
 
     do {
-      let _ = try await client.execute("whoami")
+      let _ = try await client.execute(command: "whoami")
       Issue.record("Expected error to be thrown")
     } catch let error as SSHClientError {
       if case .sessionError(let message) = error {
