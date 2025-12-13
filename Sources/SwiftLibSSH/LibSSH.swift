@@ -1,98 +1,6 @@
 import CLibSSH
 import Foundation
 
-struct SSHKey {
-  private let session: SSHSession
-  private let id: UUID
-
-  init(session: SSHSession, id: UUID) {
-    self.session = session
-    self.id = id
-  }
-
-  func auth(user: String) async throws {
-    try await session.userauthPublickey(id, user)
-  }
-
-  func free() async {
-    await session.keyFree(id)
-  }
-}
-
-struct SSHChannelData: AsyncSequence {
-  private let channel: SSHChannel
-  private let bufferSize: Int
-
-  init(channel: SSHChannel, bufferSize: Int) {
-    self.channel = channel
-    self.bufferSize = bufferSize
-  }
-
-  struct SSHChannelDataIterator: AsyncIteratorProtocol {
-    private let channel: SSHChannel
-    private var buffer: [UInt8]
-
-    init(channel: SSHChannel, bufferSize: Int) {
-      self.channel = channel
-      self.buffer = [UInt8](repeating: 0, count: bufferSize)
-    }
-
-    mutating func next() async throws -> Data? {
-      if Task.isCancelled {
-        return nil
-      }
-      return try await channel.read(buffer: &buffer)
-    }
-  }
-
-  func makeAsyncIterator() -> SSHChannelDataIterator {
-    SSHChannelDataIterator(channel: channel, bufferSize: bufferSize)
-  }
-}
-
-struct SSHChannel {
-  private let session: SSHSession
-  private let id: UUID
-
-  init(session: SSHSession, id: UUID) {
-    self.session = session
-    self.id = id
-  }
-
-  func free() async {
-    await session.channelFree(id)
-  }
-
-  func withSession<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
-    try await session.withChannelSession(id, body)
-  }
-
-  func openSession() async throws {
-    try await session.channelOpenSession(id)
-  }
-
-  func close() async {
-    await session.channelClose(id)
-  }
-
-  func requestExec(_ command: String) async throws {
-    try await session.channelRequestExec(id, command)
-  }
-
-  func read(buffer: inout [UInt8]) async throws -> Data? {
-    try await session.channelRead(id, buffer: &buffer)
-  }
-
-  func read(bufferSize: Int = 1248) async throws -> Data? {
-    var buffer = [UInt8](repeating: 0, count: bufferSize)
-    return try await read(buffer: &buffer)
-  }
-
-  func stream(bufferSize: Int = 1248) -> SSHChannelData {
-    return SSHChannelData(channel: self, bufferSize: bufferSize)
-  }
-}
-
 enum SSHError: Error {
   case newFailed
   case optionsSetFailed(String)
@@ -113,10 +21,10 @@ enum SSHError: Error {
 }
 
 final actor SSHSession {
-  fileprivate var session: ssh_session?
-  fileprivate var keys: [UUID: ssh_key] = [:]
-  fileprivate var channels: [UUID: ssh_channel] = [:]
-  fileprivate var sftps: [UUID: sftp_session] = [:]
+  private var session: ssh_session?
+  private var keys: [UUID: ssh_key] = [:]
+  private var channels: [UUID: ssh_channel] = [:]
+  private var sftps: [UUID: sftp_session] = [:]
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
@@ -138,19 +46,19 @@ final actor SSHSession {
 
   // MARK: - Session Operations
 
-  func optionsSet(_ option: ssh_options_e, _ value: UnsafeRawPointer) throws {
+  func setOption(_ option: ssh_options_e, to value: UnsafeRawPointer) throws {
     guard ssh_options_set(session, option, value) == SSH_OK else {
       throw SSHError.optionsSetFailed(getError())
     }
   }
 
   func setHost(_ host: String) throws {
-    try optionsSet(SSH_OPTIONS_HOST, host)
+    try setOption(SSH_OPTIONS_HOST, to: host)
   }
 
   func setPort(_ port: UInt32) throws {
     var port = port
-    try optionsSet(SSH_OPTIONS_PORT, &port)
+    try setOption(SSH_OPTIONS_PORT, to: &port)
   }
 
   func connect() throws {
@@ -165,13 +73,13 @@ final actor SSHSession {
     }
   }
 
-  func userauthPassword(_ user: String, _ password: String) throws {
+  func authenticate(user: String, password: String) throws {
     guard ssh_userauth_password(session, user, password) == SSH_AUTH_SUCCESS.rawValue else {
       throw SSHError.userauthPasswordFailed(getError())
     }
   }
 
-  func isConnected() -> Bool {
+  var isConnected: Bool {
     ssh_is_connected(session) == 1
   }
 
@@ -181,22 +89,22 @@ final actor SSHSession {
 
   // MARK: - Key Operations
 
-  func withPkiImportPrivkeyFile<T>(
+  func withImportedPrivateKey<T>(
+    from path: String,
+    passphrase: String? = nil,
     id: UUID = UUID(),
-    _ privateKeyPath: String,
-    _ passphrase: String? = nil,
-    _ body: (SSHKey) async throws -> T
+    perform body: (SSHKey) async throws -> T
   ) async throws -> T {
-    let key = try pkiImportPrivkeyFile(id: id, privateKeyPath, passphrase)
-    defer { keyFree(id) }
+    let key = try importPrivateKey(from: path, passphrase: passphrase, id: id)
+    defer { freeKey(id: id) }
     return try await body(key)
   }
 
-  func pkiImportPrivkeyFile(
-    id: UUID = UUID(), _ privateKeyPath: String, _ passphrase: String? = nil
+  func importPrivateKey(
+    from path: String, passphrase: String? = nil, id: UUID = UUID()
   ) throws -> SSHKey {
     var key: ssh_key?
-    guard ssh_pki_import_privkey_file(privateKeyPath, passphrase, nil, nil, &key) == SSH_OK
+    guard ssh_pki_import_privkey_file(path, passphrase, nil, nil, &key) == SSH_OK
     else {
       throw SSHError.pkiImportPrivkeyFile(getError())
     }
@@ -205,7 +113,7 @@ final actor SSHSession {
     return SSHKey(session: self, id: id)
   }
 
-  func userauthPublickey(_ id: UUID, _ user: String) throws {
+  func authenticateWithPublicKey(id: UUID, user: String) throws {
     guard let key = keys[id] else {
       throw SSHError.userauthPublickeyFailed("Key not found")
     }
@@ -215,14 +123,14 @@ final actor SSHSession {
     }
   }
 
-  func keyFree(_ id: UUID) {
+  func freeKey(id: UUID) {
     guard let key = keys.removeValue(forKey: id) else { return }
     ssh_key_free(key)
   }
 
   // MARK: - Channel Operations
 
-  private func getChannel(_ id: UUID) throws -> ssh_channel {
+  private func channel(id: UUID) throws -> ssh_channel {
     guard let channel = channels[id] else {
       throw SSHError.channelNotFound
     }
@@ -231,14 +139,14 @@ final actor SSHSession {
 
   func withChannel<T>(
     id: UUID = UUID(),
-    _ body: (SSHChannel) async throws -> T
+    perform body: (SSHChannel) async throws -> T
   ) async throws -> T {
-    let channel = try channelNew(id: id)
-    defer { channelFree(id) }
+    let channel = try createChannel(id: id)
+    defer { freeChannel(id: id) }
     return try await body(channel)
   }
 
-  func channelNew(id: UUID = UUID()) throws -> SSHChannel {
+  func createChannel(id: UUID = UUID()) throws -> SSHChannel {
     guard let channel = ssh_channel_new(session) else {
       throw SSHError.channelNewFailed
     }
@@ -246,53 +154,53 @@ final actor SSHSession {
     return SSHChannel(session: self, id: id)
   }
 
-  func channelFree(_ id: UUID) {
+  func freeChannel(id: UUID) {
     guard let channel = channels.removeValue(forKey: id) else { return }
     ssh_channel_free(channel)
   }
 
-  private func withChannelSession<T>(
-    _ channel: ssh_channel, _ body: () async throws -> T
+  private func withOpenedChannelSession<T>(
+    _ channel: ssh_channel, perform body: () async throws -> T
   ) async throws -> T {
-    try channelOpenSession(channel)
-    defer { channelClose(channel) }
+    try openChannelSession(channel: channel)
+    defer { closeChannel(channel: channel) }
     return try await body()
   }
 
-  func withChannelSession<T>(_ id: UUID, _ body: () async throws -> T) async throws -> T {
-    return try await withChannelSession(getChannel(id), body)
+  func withOpenedChannelSession<T>(id: UUID, perform body: () async throws -> T) async throws -> T {
+    return try await withOpenedChannelSession(channel(id: id), perform: body)
   }
 
-  private func channelOpenSession(_ channel: ssh_channel) throws {
+  private func openChannelSession(channel: ssh_channel) throws {
     guard ssh_channel_open_session(channel) == SSH_OK else {
       throw SSHError.channelOpenSessionFailed(getError())
     }
   }
 
-  func channelOpenSession(_ id: UUID) throws {
-    try channelOpenSession(getChannel(id))
+  func openChannelSession(id: UUID) throws {
+    try openChannelSession(channel: channel(id: id))
   }
 
-  private func channelClose(_ channel: ssh_channel) {
+  private func closeChannel(channel: ssh_channel) {
     _ = ssh_channel_close(channel)
   }
 
-  func channelClose(_ id: UUID) {
+  func closeChannel(id: UUID) {
     guard let channel = channels[id] else { return }
-    channelClose(channel)
+    closeChannel(channel: channel)
   }
 
-  private func channelRequestExec(_ channel: ssh_channel, _ command: String) throws {
+  private func execute(onChannel channel: ssh_channel, command: String) throws {
     guard ssh_channel_request_exec(channel, command) == SSH_OK else {
       throw SSHError.channelRequestExecFailed(getError())
     }
   }
 
-  func channelRequestExec(_ id: UUID, _ command: String) throws {
-    try channelRequestExec(getChannel(id), command)
+  func execute(onChannel id: UUID, command: String) throws {
+    try execute(onChannel: channel(id: id), command: command)
   }
 
-  private func channelRead(_ channel: ssh_channel, buffer: inout [UInt8]) throws -> Data? {
+  private func readChannel(channel: ssh_channel, into buffer: inout [UInt8]) throws -> Data? {
     let bufferSize = buffer.count
     let bytesRead = buffer.withUnsafeMutableBytes { raw in
       ssh_channel_read(channel, raw.baseAddress, UInt32(bufferSize), 0)
@@ -309,13 +217,13 @@ final actor SSHSession {
     return Data(bytes: buffer, count: Int(bytesRead))
   }
 
-  func channelRead(_ id: UUID, buffer: inout [UInt8]) throws -> Data? {
-    return try channelRead(getChannel(id), buffer: &buffer)
+  func readChannel(id: UUID, into buffer: inout [UInt8]) throws -> Data? {
+    return try readChannel(channel: channel(id: id), into: &buffer)
   }
 
   // MARK: - SFTP Operations
 
-  func getSftp(_ id: UUID) throws -> sftp_session {
+  func sftp(id: UUID) throws -> sftp_session {
     guard let sftp = sftps[id] else {
       throw SSHError.sftpNotFound
     }
@@ -324,14 +232,14 @@ final actor SSHSession {
 
   func withSftp<T>(
     id: UUID = UUID(),
-    _ body: (SFTPClient) async throws -> T
+    perform body: (SFTPClient) async throws -> T
   ) async throws -> T {
-    let sftp = try await sftpNew(id: id)
-    defer { sftpFree(sftp.id) }
+    let sftp = try await createSftp(id: id)
+    defer { freeSftp(id: sftp.id) }
     return try await body(sftp)
   }
 
-  func sftpNew(id: UUID = UUID()) async throws -> SFTPClient {
+  func createSftp(id: UUID = UUID()) async throws -> SFTPClient {
     guard let sftp = sftp_new(session) else {
       throw SSHError.sftpNewFailed
     }
@@ -342,13 +250,13 @@ final actor SSHSession {
     return SFTPClient(session: self, id: id)
   }
 
-  func sftpFree(_ id: UUID) {
+  func freeSftp(id: UUID) {
     guard let sftp = sftps.removeValue(forKey: id) else { return }
     sftp_free(sftp)
   }
 
-  func sftpMkdir(_ id: UUID, _ path: String, mode: mode_t = 0o755) throws {
-    let sftp = try getSftp(id)
+  func makeDirectory(id: UUID, atPath path: String, mode: mode_t = 0o755) throws {
+    let sftp = try sftp(id: id)
     guard sftp_mkdir(sftp, path, mode) == SSH_OK else {
       throw SSHError.sftpMkdirFailed(getError())
     }

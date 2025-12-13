@@ -8,7 +8,7 @@ public enum SSHClientError: Error {
   case sessionError(String)
 }
 
-struct SSHClient: Sendable {
+public struct SSHClient: Sendable {
   private let session: SSHSession
 
   private init(host: String, port: UInt32 = 22) async throws {
@@ -58,7 +58,7 @@ struct SSHClient: Sendable {
   }
 
   private func authenticate(user: String, password: String) async throws {
-    try await session.userauthPassword(user, password)
+    try await session.authenticate(user: user, password: password)
   }
 
   public static func connect(host: String, port: UInt32 = 22, user: String, password: String)
@@ -77,8 +77,9 @@ struct SSHClient: Sendable {
     guard FileManager.default.fileExists(atPath: privateKeyPath) else {
       throw SSHClientError.authenticationFailed("Private key file not found: \(privateKeyPath)")
     }
-    try await session.withPkiImportPrivkeyFile(privateKeyPath, passphrase) { privateKey in
-      try await privateKey.auth(user: user)
+    try await session.withImportedPrivateKey(from: privateKeyPath, passphrase: passphrase) {
+      privateKey in
+      try await privateKey.authenticate(user: user)
     }
   }
 
@@ -94,24 +95,26 @@ struct SSHClient: Sendable {
     return client
   }
 
-  public func isConnected() async -> Bool {
-    return await session.isConnected()
+  public var isConnected: Bool {
+    get async {
+      await session.isConnected
+    }
   }
 
   func isConnectedOrThrow() async throws {
-    if await !isConnected() {
+    if await !isConnected {
       throw SSHClientError.sessionError("SSH session is closed")
     }
   }
 
   public func sftp() async throws -> SFTPClient {
-    try await session.sftpNew()
+    try await session.createSftp()
   }
 
   public func withSftp<T: Sendable>(
-    _ body: @Sendable (SFTPClient) async throws -> T
+    perform body: @Sendable (SFTPClient) async throws -> T
   ) async throws -> T {
-    try await session.withSftp(body)
+    try await session.withSftp(perform: body)
   }
 
   public func close() async {
@@ -119,12 +122,12 @@ struct SSHClient: Sendable {
     await session.free()
   }
 
-  public func execute(_ command: String) async throws -> String {
+  public func execute(command: String) async throws -> String {
     try await isConnectedOrThrow()
 
-    return try await session.withChannel({ channel in
-      try await channel.withSession {
-        try await channel.requestExec(command)
+    return try await session.withChannel { channel in
+      try await channel.withOpenedSession {
+        try await channel.execute(command: command)
 
         var output = ""
 
@@ -136,6 +139,6 @@ struct SSHClient: Sendable {
 
         return output
       }
-    })
+    }
   }
 }

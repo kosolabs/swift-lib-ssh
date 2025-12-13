@@ -18,13 +18,13 @@ struct LibSSHTests {
     try await session.setHost("localhost")
     try await session.setPort(2222)
     try await session.connect()
-    try await session.userauthPassword("myuser", "mypass")
-    #expect(await session.isConnected() == true)
+    try await session.authenticate(user: "myuser", password: "mypass")
+    #expect(await session.isConnected)
 
-    let actual = try await session.withChannel({ channel in
-      try await channel.withSession({
-        try await channel.requestExec(
-          "dd if=/dev/urandom bs=\(bs) count=\(count) of=/dev/stdout")
+    let actual = try await session.withChannel { channel in
+      try await channel.withOpenedSession {
+        try await channel.execute(
+          command: "dd if=/dev/urandom bs=\(bs) count=\(count) of=/dev/stdout")
 
         let task = Task {
           let stream = channel.stream()
@@ -38,8 +38,8 @@ struct LibSSHTests {
         try await Task.sleep(nanoseconds: 10_000_000)
         task.cancel()
         return try await task.value
-      })
-    })
+      }
+    }
 
     #expect(actual > 0)
     #expect(actual < expected)
@@ -55,21 +55,21 @@ struct LibSSHTests {
     try await session.setHost("localhost")
     try await session.setPort(2222)
     try await session.connect()
-    try await session.userauthPassword("myuser", "mypass")
-    #expect(await session.isConnected() == true)
+    try await session.authenticate(user: "myuser", password: "mypass")
+    #expect(await session.isConnected)
 
-    let actual = try await session.withChannel({ channel in
-      try await channel.withSession({
-        try await channel.requestExec(
-          "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout")
+    let actual = try await session.withChannel { channel in
+      try await channel.withOpenedSession {
+        try await channel.execute(
+          command: "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout")
 
         for try await data: Data in channel.stream() {
           return data
         }
 
         throw TestError.noData
-      })
-    })
+      }
+    }
 
     #expect(actual.count > 0)
     #expect(actual.count < expected)
