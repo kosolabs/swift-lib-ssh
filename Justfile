@@ -9,5 +9,5 @@ start-test-server: build-test-server
 stop-test-server:
     docker compose -f Tests/docker-compose.yml down
 
-test: start-test-server
+test: stop-test-server start-test-server
     swift test

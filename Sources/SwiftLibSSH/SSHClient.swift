@@ -98,10 +98,20 @@ struct SSHClient: Sendable {
     return await session.isConnected()
   }
 
-  private func isConnectedOrThrow() async throws {
+  func isConnectedOrThrow() async throws {
     if await !isConnected() {
       throw SSHClientError.sessionError("SSH session is closed")
     }
+  }
+
+  public func sftp() async throws -> SFTPClient {
+    try await session.sftpNew()
+  }
+
+  public func withSftp<T: Sendable>(
+    _ body: @Sendable (SFTPClient) async throws -> T
+  ) async throws -> T {
+    try await session.withSftp(body)
   }
 
   public func close() async {
