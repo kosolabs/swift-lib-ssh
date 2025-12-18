@@ -4,7 +4,7 @@ import Testing
 @testable import SwiftLibSSH
 
 struct SSHClientTests {
-  @Test func execute() async throws {
+  @Test func testExecute() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
@@ -18,7 +18,7 @@ struct SSHClientTests {
     await client.close()
   }
 
-  @Test func executeWithLargerOutput() async throws {
+  @Test func testExecuteWithLargerOutput() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
@@ -31,7 +31,7 @@ struct SSHClientTests {
     await client.close()
   }
 
-  @Test func privateKeyAuthentication() async throws {
+  @Test func testPrivateKeyAuthentication() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: "Tests/Data/id_ed25519"
     )
@@ -46,7 +46,7 @@ struct SSHClientTests {
     await client.close()
   }
 
-  @Test func connectedStatus() async throws {
+  @Test func testConnectedStatus() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
@@ -57,7 +57,7 @@ struct SSHClientTests {
     #expect(!(await client.isConnected))
   }
 
-  @Test func multipleCallsToClose() async throws {
+  @Test func testMultipleCallsToClose() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
@@ -69,7 +69,7 @@ struct SSHClientTests {
     #expect(!(await client.isConnected))
   }
 
-  @Test func executeThrowsAfterClose() async throws {
+  @Test func testExecuteThrowsAfterClose() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 

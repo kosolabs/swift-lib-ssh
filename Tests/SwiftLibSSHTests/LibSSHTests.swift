@@ -8,8 +8,7 @@ enum TestError: Error {
 }
 
 struct LibSSHTests {
-  @Test
-  func testPartialReadOfChannel() async throws {
+  @Test func testPartialReadOfChannel() async throws {
     let bs = 512
     let count = 1_000_000
     let expected = bs * count
@@ -48,8 +47,7 @@ struct LibSSHTests {
     await session.free()
   }
 
-  @Test
-  func testCancellationOfForAwaitLoopOverChannelStream() async throws {
+  @Test func testCancellationOfForAwaitLoopOverChannelStream() async throws {
     let expected = 1_000_000
     let session = try SSHSession()
     try await session.setHost("localhost")
