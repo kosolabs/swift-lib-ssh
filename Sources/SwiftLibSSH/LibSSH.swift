@@ -18,6 +18,9 @@ enum SSHError: Error {
   case sftpNotFound
   case sftpInitFailed(String)
   case sftpMkdirFailed(String)
+  case sftpStatFailed(String)
+  case sftpLstatFailed(String)
+  case sftpSetstatFailed(String)
 }
 
 final actor SSHSession {
@@ -249,6 +252,39 @@ final actor SSHSession {
     let sftp = try sftp(id: id)
     guard sftp_mkdir(sftp, path, mode) == SSH_OK else {
       throw SSHError.sftpMkdirFailed(getError())
+    }
+  }
+
+  func stat(id: UUID, path: String) throws -> SFTPAttributes {
+    let sftp = try sftp(id: id)
+    guard let attributes = sftp_stat(sftp, path) else {
+      throw SSHError.sftpStatFailed(getError())
+    }
+    defer { sftp_attributes_free(attributes) }
+    return SFTPAttributes.from(raw: attributes.pointee)
+  }
+
+  func lstat(id: UUID, path: String) throws -> SFTPAttributes {
+    let sftp = try sftp(id: id)
+    guard let attributes = sftp_lstat(sftp, path) else {
+      throw SSHError.sftpLstatFailed(getError())
+    }
+    defer { sftp_attributes_free(attributes) }
+    return SFTPAttributes.from(raw: attributes.pointee)
+  }
+
+  func setPermissions(id: UUID, path: String, mode: mode_t) throws {
+    let sftp = try sftp(id: id)
+    guard let attributes = sftp_stat(sftp, path) else {
+      throw SSHError.sftpStatFailed(getError())
+    }
+    defer { sftp_attributes_free(attributes) }
+
+    // Only set permissions flag (0x00000004) and value
+    attributes.pointee.permissions = UInt32(mode)
+    attributes.pointee.flags = 0x0000_0004
+    guard sftp_setstat(sftp, path, attributes) == SSH_OK else {
+      throw SSHError.sftpSetstatFailed(getError())
     }
   }
 }
