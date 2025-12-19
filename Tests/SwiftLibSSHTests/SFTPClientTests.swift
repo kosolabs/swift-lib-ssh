@@ -9,13 +9,14 @@ struct SFTPClientTests {
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
     // Ensure /tmp/test-directory doesn't exist
-    _ = try await ssh.execute(command: "rm -rf /tmp/test-directory")
+    _ = try await ssh.execute("rm -rf /tmp/test-directory")
 
     try await ssh.withSftp(perform: { sftp in
       try await sftp.makeDirectory(atPath: "/tmp/test-directory")
     })
 
-    let after = try await ssh.execute(command: "ls /tmp | grep -E '^test-directory$' || true")
+    let after = try await ssh.execute("ls /tmp | grep -E '^test-directory$' || true")
+      .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
     #expect(after == "test-directory")
 
@@ -27,7 +28,7 @@ struct SFTPClientTests {
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
     // Prepare a temp file
-    _ = try await ssh.execute(command: "rm -f /tmp/sftp-perm.txt && touch /tmp/sftp-perm.txt")
+    _ = try await ssh.execute("rm -f /tmp/sftp-perm.txt && touch /tmp/sftp-perm.txt")
 
     try await ssh.withSftp(perform: { sftp in
       let before = try await sftp.stat(atPath: "/tmp/sftp-perm.txt")

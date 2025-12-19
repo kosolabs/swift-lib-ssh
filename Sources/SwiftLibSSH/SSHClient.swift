@@ -6,6 +6,7 @@ public enum SSHClientError: Error {
   case connectionFailed(String)
   case authenticationFailed(String)
   case sessionError(String)
+  case decodeFailed(String)
 }
 
 public struct SSHClient: Sendable {
@@ -122,23 +123,35 @@ public struct SSHClient: Sendable {
     await session.free()
   }
 
-  public func execute(command: String) async throws -> String {
+  public func execute(_ command: String) async throws -> Data {
+    return try await execute(command) { stream in
+      var output = Data()
+      for try await data in stream {
+        output.append(data)
+      }
+      return output
+    }
+  }
+
+  public func execute<T: Sendable>(
+    _ command: String, perform body: @Sendable (SSHChannelData) async throws -> T
+  ) async throws -> T {
     try await isConnectedOrThrow()
 
     return try await session.withChannel { channel in
       try await channel.withOpenedSession {
         try await channel.execute(command: command)
-
-        var output = ""
-
-        for try await data in channel.stream() {
-          if let next = String(data: data, encoding: .utf8) {
-            output.append(next)
-          }
-        }
-
-        return output
+        return try await body(channel.stream())
       }
     }
+  }
+}
+
+extension Data {
+  func decoded(as encoding: String.Encoding) throws -> String {
+    guard let str = String(data: self, encoding: encoding) else {
+      throw SSHClientError.decodeFailed("Failed to decode data as \(encoding)")
+    }
+    return str
   }
 }
