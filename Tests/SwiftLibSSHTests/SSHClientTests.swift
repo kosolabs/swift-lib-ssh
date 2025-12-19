@@ -8,8 +8,8 @@ struct SSHClientTests {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    let command = "whoami"
-    let actual = try await client.execute(command: command)
+    let actual = try await client.execute("whoami")
+      .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     let expected = "myuser"
@@ -22,8 +22,8 @@ struct SSHClientTests {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    let command = "cat lorem-ipsum.txt"
-    let actual = try await client.execute(command: command)
+    let actual = try await client.execute("cat lorem-ipsum.txt")
+      .decoded(as: .utf8)
 
     let expected = try String(contentsOfFile: "Tests/Data/lorem-ipsum.txt", encoding: .utf8)
     #expect(actual == expected)
@@ -36,8 +36,8 @@ struct SSHClientTests {
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: "Tests/Data/id_ed25519"
     )
 
-    let command = "whoami"
-    let actual = try await client.execute(command: command)
+    let actual = try await client.execute("whoami")
+      .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     let expected = "myuser"
@@ -76,7 +76,7 @@ struct SSHClientTests {
     await client.close()
 
     do {
-      let _ = try await client.execute(command: "whoami")
+      let _ = try await client.execute("whoami")
       Issue.record("Expected error to be thrown")
     } catch let error as SSHClientError {
       if case .sessionError(let message) = error {
