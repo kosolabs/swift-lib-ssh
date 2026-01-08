@@ -21,6 +21,7 @@ enum SSHError: Error {
   case sftpStatFailed(String)
   case sftpLstatFailed(String)
   case sftpSetstatFailed(String)
+  case sftpLimitsFailed(String)
   case sftpFileNotFound
   case sftpOpenFailed(String)
   case sftpCloseFailed(String)
@@ -292,6 +293,15 @@ final actor SSHSession {
     guard sftp_setstat(sftp, path, attributes) == SSH_OK else {
       throw SSHError.sftpSetstatFailed(getError())
     }
+  }
+
+  func limits(id: UUID) throws -> SFTPLimits {
+    let sftp = try sftp(id: id)
+    guard let raw = sftp_limits(sftp) else {
+      throw SSHError.sftpLimitsFailed(getError())
+    }
+    defer { sftp_limits_free(raw) }
+    return SFTPLimits.from(raw: raw.pointee)
   }
 
   // MARK: - SFTP File
