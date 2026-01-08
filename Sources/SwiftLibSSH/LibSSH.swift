@@ -21,6 +21,11 @@ enum SSHError: Error {
   case sftpStatFailed(String)
   case sftpLstatFailed(String)
   case sftpSetstatFailed(String)
+  case sftpFileNotFound
+  case sftpOpenFailed(String)
+  case sftpCloseFailed(String)
+  case sftpSeekFailed(String)
+  case sftpReadFailed(String)
 }
 
 final actor SSHSession {
@@ -28,6 +33,7 @@ final actor SSHSession {
   private var keys: [UUID: ssh_key] = [:]
   private var channels: [UUID: ssh_channel] = [:]
   private var sftps: [UUID: sftp_session] = [:]
+  private var sftpFiles: [UUID: sftp_file] = [:]
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
@@ -199,9 +205,9 @@ final actor SSHSession {
     let channel = try channel(id: id)
 
     let bufferSize = buffer.count
-    let bytesRead = buffer.withUnsafeMutableBytes { raw in
+    let bytesRead = buffer.withUnsafeMutableBytes({ raw in
       ssh_channel_read(channel, raw.baseAddress, UInt32(bufferSize), 0)
-    }
+    })
 
     if bytesRead < 0 {
       throw SSHError.channelReadFailed(getError())
@@ -227,12 +233,12 @@ final actor SSHSession {
     id: UUID = UUID(),
     perform body: (SFTPClient) async throws -> T
   ) async throws -> T {
-    let sftp = try await createSftp(id: id)
-    defer { freeSftp(id: sftp.id) }
+    let sftp = try createSftp(id: id)
+    defer { freeSftp(id: id) }
     return try await body(sftp)
   }
 
-  func createSftp(id: UUID = UUID()) async throws -> SFTPClient {
+  func createSftp(id: UUID = UUID()) throws -> SFTPClient {
     guard let sftp = sftp_new(session) else {
       throw SSHError.sftpNewFailed
     }
@@ -286,5 +292,65 @@ final actor SSHSession {
     guard sftp_setstat(sftp, path, attributes) == SSH_OK else {
       throw SSHError.sftpSetstatFailed(getError())
     }
+  }
+
+  // MARK: - SFTP File
+
+  func sftpFile(id: UUID) throws -> sftp_file {
+    guard let sftpFile = sftpFiles[id] else {
+      throw SSHError.sftpFileNotFound
+    }
+    return sftpFile
+  }
+
+  func withSftpFile<T>(
+    id: UUID = UUID(), sftpId: UUID, path: String, accessType: Int32, mode: mode_t = 0,
+    perform body: (SFTPFile) async throws -> T
+  ) async throws -> T {
+    let file = try openFile(id: id, sftpId: sftpId, path: path, accessType: accessType, mode: mode)
+    defer { closeFile(id: id) }
+    return try await body(file)
+  }
+
+  func openFile(id: UUID = UUID(), sftpId: UUID, path: String, accessType: Int32, mode: mode_t = 0)
+    throws -> SFTPFile
+  {
+    let sftp = try sftp(id: sftpId)
+    guard let sftpFile = sftp_open(sftp, path, accessType, mode) else {
+      throw SSHError.sftpOpenFailed(getError())
+    }
+    sftpFiles[id] = sftpFile
+    return SFTPFile(session: self, id: id)
+  }
+
+  func closeFile(id: UUID) {
+    guard let sftpFile = sftpFiles.removeValue(forKey: id) else { return }
+    sftp_close(sftpFile)
+  }
+
+  func seekFile(id: UUID, offset: UInt64) throws {
+    let file = try sftpFile(id: id)
+    guard sftp_seek64(file, offset) == SSH_OK else {
+      throw SSHError.sftpSeekFailed(getError())
+    }
+  }
+
+  func readFile(id: UUID, into buffer: inout [UInt8]) throws -> Data? {
+    let file = try sftpFile(id: id)
+
+    let bufferSize = buffer.count
+    let bytesRead = buffer.withUnsafeMutableBytes({ raw in
+      sftp_read(file, raw.baseAddress, bufferSize)
+    })
+
+    if bytesRead < 0 {
+      throw SSHError.sftpReadFailed(getError())
+    }
+
+    if bytesRead == 0 {
+      return nil
+    }
+
+    return Data(bytes: buffer, count: Int(bytesRead))
   }
 }
