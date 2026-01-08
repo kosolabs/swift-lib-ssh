@@ -123,6 +123,7 @@ public struct SSHClient: Sendable {
     await session.free()
   }
 
+  @discardableResult
   public func execute(_ command: String) async throws -> Data {
     return try await execute(command) { stream in
       var output = Data()
