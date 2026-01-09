@@ -1,6 +1,7 @@
 import Foundation
 
 public enum SFTPClientError: Error {
+  case createFileFailed
   case openFileForWriteFailed
 }
 
@@ -33,22 +34,33 @@ public struct SFTPClient: Sendable {
     try await session.setPermissions(id: id, path: path, mode: mode)
   }
 
-  func download(fromPath src: String, toPath dest: String) async throws {
-    if !FileManager.default.fileExists(atPath: dest) {
-      FileManager.default.createFile(atPath: dest, contents: nil)
+  func limits() async throws -> SFTPLimits {
+    try await session.limits(id: id)
+  }
+
+  func download(
+    from remotePath: String, to localURL: URL,
+    progress: (@Sendable (UInt64) -> Void)? = nil
+  ) async throws {
+    if FileManager.default.fileExists(atPath: localURL.path) {
+      try FileManager.default.removeItem(at: localURL)
+    }
+    if !FileManager.default.createFile(atPath: localURL.path, contents: nil) {
+      throw SFTPClientError.createFileFailed
     }
 
-    guard let fp = FileHandle(forWritingAtPath: dest) else {
+    guard let fp = try? FileHandle(forWritingTo: localURL) else {
       throw SFTPClientError.openFileForWriteFailed
     }
     defer { try? fp.close() }
 
-    try await session.withSftpFile(sftpId: id, path: src, accessType: O_RDONLY) { file in
+    var count: UInt64 = 0
+    try await session.withSftpFile(sftpId: id, path: remotePath, accessType: O_RDONLY) { file in
       for try await data in file.stream() {
-        if #available(macOS 10.15.4, *) {
-          try fp.write(contentsOf: data)
-        } else {
-          fp.write(data)
+        try fp.write(contentsOf: data)
+        count += UInt64(data.count)
+        if let progress = progress {
+          progress(count)
         }
       }
     }

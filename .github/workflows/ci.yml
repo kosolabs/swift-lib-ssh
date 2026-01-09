@@ -15,6 +15,7 @@ jobs:
     
     - name: Install libssh
       run: |
+        sudo add-apt-repository -y ppa:kedazo/libssh-0.7.x  # Add ppa for libssh-0.11.x
         sudo apt-get update
         sudo apt-get install -y libssh-dev
     

@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
   name: "SwiftLibSSH",
   platforms: [
-    .macOS(.v10_15)
+    .macOS(.v15)
   ],
   products: [
     .library(
