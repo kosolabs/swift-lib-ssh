@@ -62,6 +62,7 @@ struct LibSSHTests {
           command: "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout")
 
         for try await data: Data in channel.stream() {
+          // Returning here causes stream to cancel
           return data
         }
 

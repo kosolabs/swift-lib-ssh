@@ -27,6 +27,9 @@ enum SSHError: Error {
   case sftpCloseFailed(String)
   case sftpSeekFailed(String)
   case sftpReadFailed(String)
+  case sftpAioNotFound
+  case sftpAioBeginReadFailed(String)
+  case sftpAioWaitReadFailed(String)
 }
 
 final actor SSHSession {
@@ -34,7 +37,8 @@ final actor SSHSession {
   private var keys: [UUID: ssh_key] = [:]
   private var channels: [UUID: ssh_channel] = [:]
   private var sftps: [UUID: sftp_session] = [:]
-  private var sftpFiles: [UUID: sftp_file] = [:]
+  private var files: [UUID: sftp_file] = [:]
+  private var fileAios: [UUID: [UUID: UnsafeMutablePointer<sftp_aio?>]] = [:]
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
@@ -100,18 +104,16 @@ final actor SSHSession {
   // MARK: - Key Operations
 
   func withImportedPrivateKey<T>(
-    from path: String,
-    passphrase: String? = nil,
-    id: UUID = UUID(),
+    id: UUID = UUID(), from path: String, passphrase: String? = nil,
     perform body: (SSHKey) async throws -> T
   ) async throws -> T {
-    let key = try importPrivateKey(from: path, passphrase: passphrase, id: id)
+    let key = try importPrivateKey(id: id, from: path, passphrase: passphrase)
     defer { freeKey(id: id) }
     return try await body(key)
   }
 
   func importPrivateKey(
-    from path: String, passphrase: String? = nil, id: UUID = UUID()
+    id: UUID = UUID(), from path: String, passphrase: String? = nil
   ) throws -> SSHKey {
     var key: ssh_key?
     guard ssh_pki_import_privkey_file(path, passphrase, nil, nil, &key) == SSH_OK
@@ -306,8 +308,8 @@ final actor SSHSession {
 
   // MARK: - SFTP File
 
-  func sftpFile(id: UUID) throws -> sftp_file {
-    guard let sftpFile = sftpFiles[id] else {
+  func file(id: UUID) throws -> sftp_file {
+    guard let sftpFile = files[id] else {
       throw SSHError.sftpFileNotFound
     }
     return sftpFile
@@ -329,24 +331,33 @@ final actor SSHSession {
     guard let sftpFile = sftp_open(sftp, path, accessType, mode) else {
       throw SSHError.sftpOpenFailed(getError())
     }
-    sftpFiles[id] = sftpFile
+    files[id] = sftpFile
+    fileAios[id] = [:]
     return SFTPFile(session: self, id: id)
   }
 
   func closeFile(id: UUID) {
-    guard let sftpFile = sftpFiles.removeValue(forKey: id) else { return }
+    guard let sftpFile = files.removeValue(forKey: id) else { return }
     sftp_close(sftpFile)
+    if let aios = fileAios.removeValue(forKey: id) {
+      if !aios.isEmpty {
+        print("Draining!")
+      }
+      for aio in aios.values {
+        freeAio(aio)
+      }
+    }
   }
 
   func seekFile(id: UUID, offset: UInt64) throws {
-    let file = try sftpFile(id: id)
+    let file = try file(id: id)
     guard sftp_seek64(file, offset) == SSH_OK else {
       throw SSHError.sftpSeekFailed(getError())
     }
   }
 
   func readFile(id: UUID, into buffer: inout [UInt8]) throws -> Data? {
-    let file = try sftpFile(id: id)
+    let file = try file(id: id)
 
     let bufferSize = buffer.count
     let bytesRead = buffer.withUnsafeMutableBytes({ raw in
@@ -355,6 +366,54 @@ final actor SSHSession {
 
     if bytesRead < 0 {
       throw SSHError.sftpReadFailed(getError())
+    }
+
+    if bytesRead == 0 {
+      return nil
+    }
+
+    return Data(bytes: buffer, count: Int(bytesRead))
+  }
+
+  // MARK: - AIO
+
+  private func freeAio(_ aio: UnsafeMutablePointer<sftp_aio?>) {
+    sftp_aio_free(aio.pointee)
+    aio.deallocate()
+  }
+
+  func freeAio(aioId: UUID, fileId: UUID) {
+    guard let aio = fileAios[fileId]?.removeValue(forKey: aioId) else {
+      return
+    }
+    freeAio(aio)
+  }
+
+  func beginRead(aioId: UUID = UUID(), fileId: UUID, bufferSize: Int) throws -> SFTPAio {
+    let file = try file(id: fileId)
+    let aio = UnsafeMutablePointer<sftp_aio?>.allocate(capacity: 1)
+    fileAios[fileId]?[aioId] = aio
+
+    if sftp_aio_begin_read(file, bufferSize, aio) < 0 {
+      throw SSHError.sftpAioBeginReadFailed(getError())
+    }
+
+    return SFTPAio(session: self, aioId: aioId, fileId: fileId)
+  }
+
+  func waitRead(aioId: UUID, fileId: UUID, into buffer: inout [UInt8]) throws -> Data? {
+    guard let aio = fileAios[fileId]?.removeValue(forKey: aioId) else {
+      throw SSHError.sftpAioNotFound
+    }
+
+    let bufferSize = buffer.count
+    let bytesRead = buffer.withUnsafeMutableBytes({ raw in
+      sftp_aio_wait_read(aio, raw.baseAddress, bufferSize)
+    })
+    freeAio(aio)
+
+    if bytesRead < 0 {
+      throw SSHError.sftpAioWaitReadFailed(getError())
     }
 
     if bytesRead == 0 {

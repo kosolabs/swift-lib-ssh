@@ -1,33 +1,59 @@
 import Foundation
 
+func freeAll(aios: [SFTPAio]) async {
+  await withDiscardingTaskGroup { group in
+    for aio in aios {
+      group.addTask {
+        await aio.free()
+      }
+    }
+  }
+}
 public struct SFTPStream: Sendable, AsyncSequence {
   private let file: SFTPFile
   private let bufferSize: Int
+  private let queueSize: Int
 
-  init(file: SFTPFile, bufferSize: Int) {
+  init(file: SFTPFile, bufferSize: Int, queueSize: Int) {
     self.file = file
     self.bufferSize = bufferSize
+    self.queueSize = queueSize
   }
 
-  public struct SFTPStreamDataIterator: AsyncIteratorProtocol {
+  public class SFTPStreamDataIterator: AsyncIteratorProtocol {
     private let file: SFTPFile
     private var buffer: [UInt8]
+    private let queueSize: Int
+    private var queue: [SFTPAio] = []
 
-    init(file: SFTPFile, bufferSize: Int) {
+    init(file: SFTPFile, bufferSize: Int, queueSize: Int) {
       self.file = file
       self.buffer = [UInt8](repeating: 0, count: bufferSize)
+      self.queueSize = queueSize
     }
 
-    public mutating func next() async throws -> Data? {
+    public func next() async throws -> Data? {
       if Task.isCancelled {
         return nil
       }
-      return try await file.read(into: &buffer)
+
+      while queue.count < queueSize {
+        let aio = try await file.beginRead(bufferSize: buffer.count)
+        queue.append(aio)
+      }
+      let aio = queue.removeFirst()
+      let result = try await aio.read(into: &buffer)
+      if result == nil {
+        while !queue.isEmpty {
+          await queue.removeFirst().free()
+        }
+      }
+      return result
     }
   }
 
   public func makeAsyncIterator() -> SFTPStreamDataIterator {
-    SFTPStreamDataIterator(file: file, bufferSize: bufferSize)
+    SFTPStreamDataIterator(file: file, bufferSize: bufferSize, queueSize: queueSize)
   }
 }
 
@@ -48,6 +74,10 @@ public struct SFTPFile: Sendable {
     try await session.seekFile(id: id, offset: offset)
   }
 
+  public func beginRead(bufferSize: Int) async throws -> SFTPAio {
+    try await session.beginRead(fileId: id, bufferSize: bufferSize)
+  }
+
   public func read(into buffer: inout [UInt8]) async throws -> Data? {
     try await session.readFile(id: id, into: &buffer)
   }
@@ -57,7 +87,7 @@ public struct SFTPFile: Sendable {
     return try await read(into: &buffer)
   }
 
-  public func stream(maxBytes: Int = 102400) -> SFTPStream {
-    return SFTPStream(file: self, bufferSize: maxBytes)
+  public func stream(maxBytes: Int = 102400, queueSize: Int = 16) -> SFTPStream {
+    return SFTPStream(file: self, bufferSize: maxBytes, queueSize: queueSize)
   }
 }
