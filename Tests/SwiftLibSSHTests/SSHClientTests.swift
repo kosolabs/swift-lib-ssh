@@ -76,7 +76,7 @@ struct SSHClientTests {
     await client.close()
 
     do {
-      let _ = try await client.execute("whoami")
+      try await client.execute("whoami")
       Issue.record("Expected error to be thrown")
     } catch let error as SSHClientError {
       if case .sessionError(let message) = error {

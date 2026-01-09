@@ -38,6 +38,12 @@ public struct SFTPClient: Sendable {
     try await session.limits(id: id)
   }
 
+  func withReadOnlySftpFile<T: Sendable>(
+    atPath path: String, perform: @Sendable (SFTPFile) async throws -> T
+  ) async throws -> T {
+    try await session.withSftpFile(sftpId: id, path: path, accessType: O_RDONLY, perform: perform)
+  }
+
   func download(
     from remotePath: String, to localURL: URL,
     progress: (@Sendable (UInt64) -> Void)? = nil
@@ -54,8 +60,8 @@ public struct SFTPClient: Sendable {
     }
     defer { try? fp.close() }
 
-    var count: UInt64 = 0
-    try await session.withSftpFile(sftpId: id, path: remotePath, accessType: O_RDONLY) { file in
+    try await withReadOnlySftpFile(atPath: remotePath) { file in
+      var count: UInt64 = 0
       for try await data in file.stream() {
         try fp.write(contentsOf: data)
         count += UInt64(data.count)
