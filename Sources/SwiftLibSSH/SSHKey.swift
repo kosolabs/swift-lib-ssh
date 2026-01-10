@@ -2,9 +2,9 @@ import Foundation
 
 public struct SSHKey: Sendable {
   private let session: SSHSession
-  private let id: UUID
+  private let id: SSHKeyID
 
-  init(session: SSHSession, id: UUID) {
+  init(session: SSHSession, id: SSHKeyID) {
     self.session = session
     self.id = id
   }
