@@ -59,9 +59,9 @@ public struct SFTPStream: Sendable, AsyncSequence {
 
 public struct SFTPFile: Sendable {
   private let session: SSHSession
-  private let id: UUID
+  private let id: SFTPFileID
 
-  init(session: SSHSession, id: UUID) {
+  init(session: SSHSession, id: SFTPFileID) {
     self.session = session
     self.id = id
   }
@@ -75,7 +75,7 @@ public struct SFTPFile: Sendable {
   }
 
   public func beginRead(bufferSize: Int) async throws -> SFTPAio {
-    try await session.beginRead(fileId: id, bufferSize: bufferSize)
+    try await session.beginRead(id: id, bufferSize: bufferSize)
   }
 
   public func read(into buffer: inout [UInt8]) async throws -> Data? {

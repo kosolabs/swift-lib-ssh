@@ -7,9 +7,9 @@ public enum SFTPClientError: Error {
 
 public struct SFTPClient: Sendable {
   private let session: SSHSession
-  private let id: UUID
+  private let id: SFTPClientID
 
-  init(session: SSHSession, id: UUID) {
+  init(session: SSHSession, id: SFTPClientID) {
     self.session = session
     self.id = id
   }
@@ -41,7 +41,7 @@ public struct SFTPClient: Sendable {
   func withReadOnlySftpFile<T: Sendable>(
     atPath path: String, perform: @Sendable (SFTPFile) async throws -> T
   ) async throws -> T {
-    try await session.withSftpFile(sftpId: id, path: path, accessType: O_RDONLY, perform: perform)
+    try await session.withSftpFile(id: id, path: path, accessType: O_RDONLY, perform: perform)
   }
 
   func download(

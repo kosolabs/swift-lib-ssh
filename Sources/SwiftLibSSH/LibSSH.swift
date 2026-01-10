@@ -1,6 +1,33 @@
 import CLibSSH
 import Foundation
 
+// MARK: - Identifiers
+
+public struct SSHKeyID: Hashable, Sendable {
+  let uuid = UUID()
+}
+
+public struct SSHChannelID: Hashable, Sendable {
+  let uuid = UUID()
+}
+
+public struct SFTPClientID: Hashable, Sendable {
+  let uuid = UUID()
+}
+
+public struct SFTPFileID: Hashable, Sendable {
+  let uuid = UUID()
+}
+
+public struct SFTPAioID: Hashable, Sendable {
+  let fileId: SFTPFileID
+  let uuid = UUID()
+
+  init(fileId: SFTPFileID) {
+    self.fileId = fileId
+  }
+}
+
 enum SSHError: Error {
   case newFailed
   case optionsSetFailed(String)
@@ -34,11 +61,15 @@ enum SSHError: Error {
 
 final actor SSHSession {
   private var session: ssh_session?
-  private var keys: [UUID: ssh_key] = [:]
-  private var channels: [UUID: ssh_channel] = [:]
-  private var sftps: [UUID: sftp_session] = [:]
-  private var files: [UUID: sftp_file] = [:]
-  private var fileAios: [UUID: [UUID: UnsafeMutablePointer<sftp_aio?>]] = [:]
+  private var keys: [SSHKeyID: ssh_key] = [:]
+  private var channels: [SSHChannelID: ssh_channel] = [:]
+  private var sftps: [SFTPClientID: sftp_session] = [:]
+
+  private struct TrackedFile {
+    let file: sftp_file
+    var aios: [SFTPAioID: UnsafeMutablePointer<sftp_aio?>] = [:]
+  }
+  private var files: [SFTPFileID: TrackedFile] = [:]
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
@@ -104,16 +135,16 @@ final actor SSHSession {
   // MARK: - Key Operations
 
   func withImportedPrivateKey<T>(
-    id: UUID = UUID(), from path: String, passphrase: String? = nil,
+    _id: SSHKeyID = SSHKeyID(), from path: String, passphrase: String? = nil,
     perform body: (SSHKey) async throws -> T
   ) async throws -> T {
-    let key = try importPrivateKey(id: id, from: path, passphrase: passphrase)
-    defer { freeKey(id: id) }
+    let key = try importPrivateKey(_id: _id, from: path, passphrase: passphrase)
+    defer { freeKey(id: _id) }
     return try await body(key)
   }
 
   func importPrivateKey(
-    id: UUID = UUID(), from path: String, passphrase: String? = nil
+    _id: SSHKeyID = SSHKeyID(), from path: String, passphrase: String? = nil
   ) throws -> SSHKey {
     var key: ssh_key?
     guard ssh_pki_import_privkey_file(path, passphrase, nil, nil, &key) == SSH_OK
@@ -121,11 +152,11 @@ final actor SSHSession {
       throw SSHError.pkiImportPrivkeyFile(getError())
     }
 
-    keys[id] = key!
-    return SSHKey(session: self, id: id)
+    keys[_id] = key!
+    return SSHKey(session: self, id: _id)
   }
 
-  func authenticateWithPublicKey(id: UUID, user: String) throws {
+  func authenticateWithPublicKey(id: SSHKeyID, user: String) throws {
     guard let key = keys[id] else {
       throw SSHError.userauthPublickeyFailed("Key not found")
     }
@@ -135,14 +166,14 @@ final actor SSHSession {
     }
   }
 
-  func freeKey(id: UUID) {
+  func freeKey(id: SSHKeyID) {
     guard let key = keys.removeValue(forKey: id) else { return }
     ssh_key_free(key)
   }
 
   // MARK: - Channel Operations
 
-  private func channel(id: UUID) throws -> ssh_channel {
+  private func channel(id: SSHChannelID) throws -> ssh_channel {
     guard let channel = channels[id] else {
       throw SSHError.channelNotFound
     }
@@ -150,28 +181,30 @@ final actor SSHSession {
   }
 
   func withChannel<T>(
-    id: UUID = UUID(),
+    _id: SSHChannelID = SSHChannelID(),
     perform body: (SSHChannel) async throws -> T
   ) async throws -> T {
-    let channel = try createChannel(id: id)
-    defer { freeChannel(id: id) }
+    let channel = try createChannel(_id: _id)
+    defer { freeChannel(id: _id) }
     return try await body(channel)
   }
 
-  func createChannel(id: UUID = UUID()) throws -> SSHChannel {
+  func createChannel(_id: SSHChannelID = SSHChannelID()) throws -> SSHChannel {
     guard let channel = ssh_channel_new(session) else {
       throw SSHError.channelNewFailed
     }
-    channels[id] = channel
-    return SSHChannel(session: self, id: id)
+    channels[_id] = channel
+    return SSHChannel(session: self, id: _id)
   }
 
-  func freeChannel(id: UUID) {
+  func freeChannel(id: SSHChannelID) {
     guard let channel = channels.removeValue(forKey: id) else { return }
     ssh_channel_free(channel)
   }
 
-  func withOpenedChannelSession<T>(id: UUID, perform body: () async throws -> T) async throws -> T {
+  func withOpenedChannelSession<T>(id: SSHChannelID, perform body: () async throws -> T)
+    async throws -> T
+  {
     let channel = try channel(id: id)
     try openChannelSession(channel: channel)
     defer { closeChannel(channel: channel) }
@@ -184,7 +217,7 @@ final actor SSHSession {
     }
   }
 
-  func openChannelSession(id: UUID) throws {
+  func openChannelSession(id: SSHChannelID) throws {
     try openChannelSession(channel: channel(id: id))
   }
 
@@ -192,19 +225,19 @@ final actor SSHSession {
     _ = ssh_channel_close(channel)
   }
 
-  func closeChannel(id: UUID) {
+  func closeChannel(id: SSHChannelID) {
     guard let channel = channels[id] else { return }
     closeChannel(channel: channel)
   }
 
-  func execute(onChannel id: UUID, command: String) throws {
+  func execute(onChannel id: SSHChannelID, command: String) throws {
     let channel = try channel(id: id)
     guard ssh_channel_request_exec(channel, command) == SSH_OK else {
       throw SSHError.channelRequestExecFailed(getError())
     }
   }
 
-  func readChannel(id: UUID, into buffer: inout [UInt8]) throws -> Data? {
+  func readChannel(id: SSHChannelID, into buffer: inout [UInt8]) throws -> Data? {
     let channel = try channel(id: id)
 
     let bufferSize = buffer.count
@@ -225,7 +258,7 @@ final actor SSHSession {
 
   // MARK: - SFTP Operations
 
-  func sftp(id: UUID) throws -> sftp_session {
+  func sftp(id: SFTPClientID) throws -> sftp_session {
     guard let sftp = sftps[id] else {
       throw SSHError.sftpNotFound
     }
@@ -233,38 +266,38 @@ final actor SSHSession {
   }
 
   func withSftp<T>(
-    id: UUID = UUID(),
+    _id: SFTPClientID = SFTPClientID(),
     perform body: (SFTPClient) async throws -> T
   ) async throws -> T {
-    let sftp = try createSftp(id: id)
-    defer { freeSftp(id: id) }
+    let sftp = try createSftp(_id: _id)
+    defer { freeSftp(id: _id) }
     return try await body(sftp)
   }
 
-  func createSftp(id: UUID = UUID()) throws -> SFTPClient {
+  func createSftp(_id: SFTPClientID = SFTPClientID()) throws -> SFTPClient {
     guard let sftp = sftp_new(session) else {
       throw SSHError.sftpNewFailed
     }
     guard sftp_init(sftp) == SSH_OK else {
       throw SSHError.sftpInitFailed(getError())
     }
-    sftps[id] = sftp
-    return SFTPClient(session: self, id: id)
+    sftps[_id] = sftp
+    return SFTPClient(session: self, id: _id)
   }
 
-  func freeSftp(id: UUID) {
+  func freeSftp(id: SFTPClientID) {
     guard let sftp = sftps.removeValue(forKey: id) else { return }
     sftp_free(sftp)
   }
 
-  func makeDirectory(id: UUID, atPath path: String, mode: mode_t = 0o755) throws {
+  func makeDirectory(id: SFTPClientID, atPath path: String, mode: mode_t = 0o755) throws {
     let sftp = try sftp(id: id)
     guard sftp_mkdir(sftp, path, mode) == SSH_OK else {
       throw SSHError.sftpMkdirFailed(getError())
     }
   }
 
-  func stat(id: UUID, path: String) throws -> SFTPAttributes {
+  func stat(id: SFTPClientID, path: String) throws -> SFTPAttributes {
     let sftp = try sftp(id: id)
     guard let attributes = sftp_stat(sftp, path) else {
       throw SSHError.sftpStatFailed(getError())
@@ -273,7 +306,7 @@ final actor SSHSession {
     return SFTPAttributes.from(raw: attributes.pointee)
   }
 
-  func lstat(id: UUID, path: String) throws -> SFTPAttributes {
+  func lstat(id: SFTPClientID, path: String) throws -> SFTPAttributes {
     let sftp = try sftp(id: id)
     guard let attributes = sftp_lstat(sftp, path) else {
       throw SSHError.sftpLstatFailed(getError())
@@ -282,7 +315,7 @@ final actor SSHSession {
     return SFTPAttributes.from(raw: attributes.pointee)
   }
 
-  func setPermissions(id: UUID, path: String, mode: mode_t) throws {
+  func setPermissions(id: SFTPClientID, path: String, mode: mode_t) throws {
     let sftp = try sftp(id: id)
     guard let attributes = sftp_stat(sftp, path) else {
       throw SSHError.sftpStatFailed(getError())
@@ -297,7 +330,7 @@ final actor SSHSession {
     }
   }
 
-  func limits(id: UUID) throws -> SFTPLimits {
+  func limits(id: SFTPClientID) throws -> SFTPLimits {
     let sftp = try sftp(id: id)
     guard let raw = sftp_limits(sftp) else {
       throw SSHError.sftpLimitsFailed(getError())
@@ -308,55 +341,54 @@ final actor SSHSession {
 
   // MARK: - SFTP File
 
-  func file(id: UUID) throws -> sftp_file {
-    guard let sftpFile = files[id] else {
+  func file(id: SFTPFileID) throws -> sftp_file {
+    guard let trackedFile = files[id] else {
       throw SSHError.sftpFileNotFound
     }
-    return sftpFile
+    return trackedFile.file
   }
 
   func withSftpFile<T>(
-    id: UUID = UUID(), sftpId: UUID, path: String, accessType: Int32, mode: mode_t = 0,
+    _id: SFTPFileID = SFTPFileID(), id: SFTPClientID, path: String, accessType: Int32,
+    mode: mode_t = 0,
     perform body: (SFTPFile) async throws -> T
   ) async throws -> T {
-    let file = try openFile(id: id, sftpId: sftpId, path: path, accessType: accessType, mode: mode)
-    defer { closeFile(id: id) }
+    let file = try openFile(_id: _id, id: id, path: path, accessType: accessType, mode: mode)
+    defer { closeFile(id: _id) }
     return try await body(file)
   }
 
-  func openFile(id: UUID = UUID(), sftpId: UUID, path: String, accessType: Int32, mode: mode_t = 0)
-    throws -> SFTPFile
-  {
-    let sftp = try sftp(id: sftpId)
+  func openFile(
+    _id: SFTPFileID = SFTPFileID(), id: SFTPClientID, path: String, accessType: Int32,
+    mode: mode_t = 0
+  ) throws -> SFTPFile {
+    let sftp = try sftp(id: id)
     guard let sftpFile = sftp_open(sftp, path, accessType, mode) else {
       throw SSHError.sftpOpenFailed(getError())
     }
-    files[id] = sftpFile
-    fileAios[id] = [:]
-    return SFTPFile(session: self, id: id)
+    files[_id] = TrackedFile(file: sftpFile)
+    return SFTPFile(session: self, id: _id)
   }
 
-  func closeFile(id: UUID) {
-    guard let sftpFile = files.removeValue(forKey: id) else { return }
-    sftp_close(sftpFile)
-    if let aios = fileAios.removeValue(forKey: id) {
-      if !aios.isEmpty {
-        print("Draining!")
-      }
-      for aio in aios.values {
-        freeAio(aio)
-      }
+  func closeFile(id: SFTPFileID) {
+    guard let trackedFile = files.removeValue(forKey: id) else { return }
+    sftp_close(trackedFile.file)
+    if !trackedFile.aios.isEmpty {
+      print("Draining!")
+    }
+    for aio in trackedFile.aios.values {
+      freeAio(aio)
     }
   }
 
-  func seekFile(id: UUID, offset: UInt64) throws {
+  func seekFile(id: SFTPFileID, offset: UInt64) throws {
     let file = try file(id: id)
     guard sftp_seek64(file, offset) == SSH_OK else {
       throw SSHError.sftpSeekFailed(getError())
     }
   }
 
-  func readFile(id: UUID, into buffer: inout [UInt8]) throws -> Data? {
+  func readFile(id: SFTPFileID, into buffer: inout [UInt8]) throws -> Data? {
     let file = try file(id: id)
 
     let bufferSize = buffer.count
@@ -382,27 +414,28 @@ final actor SSHSession {
     aio.deallocate()
   }
 
-  func freeAio(aioId: UUID, fileId: UUID) {
-    guard let aio = fileAios[fileId]?.removeValue(forKey: aioId) else {
+  func freeAio(id: SFTPAioID) {
+    guard let aio = files[id.fileId]?.aios.removeValue(forKey: id) else {
       return
     }
     freeAio(aio)
   }
 
-  func beginRead(aioId: UUID = UUID(), fileId: UUID, bufferSize: Int) throws -> SFTPAio {
-    let file = try file(id: fileId)
+  func beginRead(id: SFTPFileID, bufferSize: Int) throws -> SFTPAio {
+    let aioId = SFTPAioID(fileId: id)
+    let file = try file(id: id)
     let aio = UnsafeMutablePointer<sftp_aio?>.allocate(capacity: 1)
-    fileAios[fileId]?[aioId] = aio
+    files[id]?.aios[aioId] = aio
 
     if sftp_aio_begin_read(file, bufferSize, aio) < 0 {
       throw SSHError.sftpAioBeginReadFailed(getError())
     }
 
-    return SFTPAio(session: self, aioId: aioId, fileId: fileId)
+    return SFTPAio(session: self, id: aioId)
   }
 
-  func waitRead(aioId: UUID, fileId: UUID, into buffer: inout [UInt8]) throws -> Data? {
-    guard let aio = fileAios[fileId]?.removeValue(forKey: aioId) else {
+  func waitRead(id: SFTPAioID, into buffer: inout [UInt8]) throws -> Data? {
+    guard let aio = files[id.fileId]?.aios.removeValue(forKey: id) else {
       throw SSHError.sftpAioNotFound
     }
 

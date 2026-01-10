@@ -2,20 +2,18 @@ import Foundation
 
 public struct SFTPAio: Sendable {
   private let session: SSHSession
-  private let aioId: UUID
-  private let fileId: UUID
+  private let id: SFTPAioID
 
-  init(session: SSHSession, aioId: UUID, fileId: UUID) {
+  init(session: SSHSession, id: SFTPAioID) {
     self.session = session
-    self.aioId = aioId
-    self.fileId = fileId
+    self.id = id
   }
 
   func free() async {
-    await session.freeAio(aioId: aioId, fileId: fileId)
+    await session.freeAio(id: id)
   }
 
   func read(into buffer: inout [UInt8]) async throws -> Data? {
-    try await session.waitRead(aioId: aioId, fileId: fileId, into: &buffer)
+    try await session.waitRead(id: id, into: &buffer)
   }
 }

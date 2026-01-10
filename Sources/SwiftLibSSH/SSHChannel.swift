@@ -33,9 +33,9 @@ public struct SSHChannelData: Sendable, AsyncSequence {
 
 public struct SSHChannel: Sendable {
   private let session: SSHSession
-  private let id: UUID
+  private let id: SSHChannelID
 
-  init(session: SSHSession, id: UUID) {
+  init(session: SSHSession, id: SSHChannelID) {
     self.session = session
     self.id = id
   }
