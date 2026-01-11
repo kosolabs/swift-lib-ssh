@@ -1,14 +1,5 @@
 import Foundation
 
-func freeAll(aios: [SFTPAio]) async {
-  await withDiscardingTaskGroup { group in
-    for aio in aios {
-      group.addTask {
-        await aio.free()
-      }
-    }
-  }
-}
 public struct SFTPStream: Sendable, AsyncSequence {
   private let file: SFTPFile
   private let bufferSize: Int
