@@ -1,5 +1,12 @@
 import Foundation
 
+public enum SFTPFileError: Error {
+  case createFileFailed
+  case openFileForReadFailed
+  case openFileForWriteFailed
+  case oops
+}
+
 public struct SFTPStream: Sendable, AsyncSequence {
   private let file: SFTPFile
   private let count: Int
@@ -87,5 +94,50 @@ public struct SFTPFile: Sendable {
 
   public func stream(count: Int = 102400) -> SFTPStream {
     return SFTPStream(file: self, count: count)
+  }
+
+  public func download(
+    to localURL: URL,
+    progress: (@Sendable (UInt64) -> Void)? = nil
+  ) async throws {
+    if !FileManager.default.createFile(atPath: localURL.path, contents: nil) {
+      throw SFTPFileError.createFileFailed
+    }
+
+    guard let fp = try? FileHandle(forWritingTo: localURL) else {
+      throw SFTPFileError.openFileForWriteFailed
+    }
+    defer { try? fp.close() }
+
+    var count: UInt64 = 0
+    for try await data in stream() {
+      try fp.write(contentsOf: data)
+      count += UInt64(data.count)
+      progress?(count)
+    }
+  }
+
+  public func upload(
+    from localURL: URL, mode: mode_t = 0,
+    progress: (@Sendable (UInt64) -> Void)? = nil
+  ) async throws {
+    guard let fp = try? FileHandle(forReadingFrom: localURL) else {
+      throw SFTPFileError.openFileForReadFailed
+    }
+    defer { try? fp.close() }
+
+    var count: UInt64 = 0
+    while true {
+      guard let data = try fp.read(upToCount: 102400) else {
+        break
+      }
+
+      let bytesWritten = try await write(data: data)
+      if bytesWritten != data.count {
+        throw SFTPFileError.oops
+      }
+      count += UInt64(data.count)
+      progress?(count)
+    }
   }
 }

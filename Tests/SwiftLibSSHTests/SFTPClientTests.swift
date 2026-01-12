@@ -129,7 +129,19 @@ struct SFTPClientTests {
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     try await ssh.withSftp { sftp in
-      try await sftp.upload(from: srcURL, to: "/tmp/ultest.dat", mode: 0o644)
+      let size = try FileManager.default.attributesOfItem(atPath: srcURL.path)[.size] as! UInt64
+      let transferred = Atomic<UInt64>(0)
+
+      let elapsed = try await ContinuousClock().measure {
+        try await sftp.upload(from: srcURL, to: "/tmp/ultest.dat", mode: 0o644) { progress in
+          transferred.store(progress, ordering: .relaxed)
+        }
+      }
+
+      let speed = Double(size) / 1_048_576 / (elapsed / .seconds(1))
+      print("Upload speed: \(String(format: "%.2f", speed))MB/s")
+
+      #expect(transferred.load(ordering: .relaxed) == size)
     }
 
     try await Task.sleep(for: .seconds(1))

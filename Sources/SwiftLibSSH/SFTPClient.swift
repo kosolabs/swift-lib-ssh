@@ -1,12 +1,5 @@
 import Foundation
 
-public enum SFTPClientError: Error {
-  case createFileFailed
-  case openFileForWriteFailed
-  case openFileForReadFailed
-  case oops
-}
-
 public struct SFTPClient: Sendable {
   private let session: SSHSession
   private let id: SFTPClientID
@@ -52,49 +45,17 @@ public struct SFTPClient: Sendable {
     from remotePath: String, to localURL: URL,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
-    if FileManager.default.fileExists(atPath: localURL.path) {
-      try FileManager.default.removeItem(at: localURL)
-    }
-    if !FileManager.default.createFile(atPath: localURL.path, contents: nil) {
-      throw SFTPClientError.createFileFailed
-    }
-
-    guard let fp = try? FileHandle(forWritingTo: localURL) else {
-      throw SFTPClientError.openFileForWriteFailed
-    }
-    defer { try? fp.close() }
-
     try await withSftpFile(atPath: remotePath, accessType: .readOnly) { file in
-      var count: UInt64 = 0
-      for try await data in file.stream() {
-        try fp.write(contentsOf: data)
-        count += UInt64(data.count)
-        if let progress = progress {
-          progress(count)
-        }
-      }
+      try await file.download(to: localURL, progress: progress)
     }
   }
 
   func upload(
     from localURL: URL, to remotePath: String, mode: mode_t = 0,
+    progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
-    guard let fp = try? FileHandle(forReadingFrom: localURL) else {
-      throw SFTPClientError.openFileForReadFailed
-    }
-    defer { try? fp.close() }
-
     try await withSftpFile(atPath: remotePath, accessType: .writeOnly, mode: mode) { file in
-      while true {
-        guard let data = try fp.read(upToCount: 102400) else {
-          break
-        }
-
-        let bytesWritten = try await file.write(data: data)
-        if bytesWritten != data.count {
-          throw SFTPClientError.oops
-        }
-      }
+      try await file.upload(from: localURL, mode: mode, progress: progress)
     }
   }
 }
