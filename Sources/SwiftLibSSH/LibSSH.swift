@@ -420,18 +420,18 @@ final actor SSHSession {
     }
   }
 
-  func readFile(id: SFTPFileID, into buffer: inout Data, count: Int) throws {
+  func readFile(id: SFTPFileID, into buffer: inout Data, length: Int) throws -> Int {
     let file = try file(id: id)
 
     let bytesRead = buffer.withUnsafeMutableBytes({ raw in
-      sftp_read(file, raw.baseAddress, count)
+      sftp_read(file, raw.baseAddress, length)
     })
 
     if bytesRead < 0 {
       throw SSHError.sftpReadFailed(getError())
     }
 
-    buffer.count = bytesRead
+    return bytesRead
   }
 
   func writeFile(id: SFTPFileID, data: Data) throws -> Int {
@@ -463,26 +463,26 @@ final actor SSHSession {
     freeAio(aio)
   }
 
-  func beginRead(id: SFTPFileID, count: Int) throws -> SFTPAio {
+  func beginRead(id: SFTPFileID, length: Int) throws -> SFTPAio {
     let aioId = SFTPAioID(fileId: id)
     let file = try file(id: id)
     let aio = UnsafeMutablePointer<sftp_aio?>.allocate(capacity: 1)
     files[id]?.aios[aioId] = aio
 
-    if sftp_aio_begin_read(file, count, aio) < 0 {
+    if sftp_aio_begin_read(file, length, aio) < 0 {
       throw SSHError.sftpAioBeginReadFailed(getError())
     }
 
-    return SFTPAio(session: self, id: aioId)
+    return SFTPAio(session: self, id: aioId, length: length)
   }
 
-  func waitRead(id: SFTPAioID, into buffer: inout Data, count: Int) throws {
+  func waitRead(id: SFTPAioID, into buffer: inout Data, length: Int) throws -> Int {
     guard let aio = files[id.fileId]?.aios.removeValue(forKey: id) else {
       throw SSHError.sftpAioNotFound
     }
 
     let bytesRead = buffer.withUnsafeMutableBytes({ raw in
-      sftp_aio_wait_read(aio, raw.baseAddress, count)
+      sftp_aio_wait_read(aio, raw.baseAddress, length)
     })
     freeAio(aio)
 
@@ -490,6 +490,6 @@ final actor SSHSession {
       throw SSHError.sftpAioWaitReadFailed(getError())
     }
 
-    buffer.count = bytesRead
+    return bytesRead
   }
 }

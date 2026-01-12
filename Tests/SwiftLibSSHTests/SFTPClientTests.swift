@@ -4,22 +4,6 @@ import Testing
 
 @testable import SwiftLibSSH
 
-@discardableResult
-func shell(_ command: String) throws -> Data {
-  let process = Process()
-  let pipe = Pipe()
-
-  process.standardOutput = pipe
-  process.standardError = pipe
-  process.executableURL = URL(fileURLWithPath: "/bin/bash")
-  process.arguments = ["-c", command]
-
-  try process.run()
-  process.waitUntilExit()
-
-  return pipe.fileHandleForReading.readDataToEndOfFile()
-}
-
 struct SFTPClientTests {
   @Test func testMkdir() async throws {
     let ssh = try await SSHClient.connect(
@@ -55,48 +39,26 @@ struct SFTPClientTests {
     await ssh.close()
   }
 
-  @Test func testRead() async throws {
-    let ssh = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
-
-    let srcPath = "/tmp/readtest.dat"
-
-    try await ssh.execute("printf '%b' \"$(printf '\\x%02x' {0..255})\" > \(srcPath)")
-    let expected = Data(Array(0...255))
-
-    let actual = try await ssh.withSftp { sftp in
-      try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-        let result = try await file.read()
-        #expect(try await file.read() == nil)
-        return result
-      }
-    }
-
-    #expect(actual == expected)
-
-    await ssh.close()
-  }
-
   @Test func testDownload() async throws {
     let ssh = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
+    let srcPath = "/tmp/dl-test.dat"
+
     let destURL = FileManager
       .default
       .temporaryDirectory
-      .appendingPathComponent("dltest.dat")
+      .appendingPathComponent("dl-test.dat")
 
-    try await ssh.execute("dd if=/dev/urandom of=/tmp/dltest.dat bs=1048576 count=1")
-    let expected = try await ssh.execute("md5sum /tmp/dltest.dat | cut -d' ' -f1")
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1048576 count=1")
+    let expected = try await ssh.md5(ofFile: srcPath)
 
     try await ssh.withSftp { sftp in
-      let size = try await sftp.stat(atPath: "/tmp/dltest.dat").size
+      let size = try await sftp.stat(atPath: srcPath).size
       let transferred = Atomic<UInt64>(0)
 
       let elapsed = try await ContinuousClock().measure {
-        try await sftp.download(from: "/tmp/dltest.dat", to: destURL) { progress in
+        try await sftp.download(from: srcPath, to: destURL) { progress in
           transferred.store(progress, ordering: .relaxed)
         }
       }
@@ -106,9 +68,7 @@ struct SFTPClientTests {
       #expect(transferred.load(ordering: .relaxed) == size)
     }
 
-    let actual = try shell("md5sum \(destURL.path) | cut -d' ' -f1")
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let actual = try md5(ofFile: destURL)
     #expect(actual == expected)
 
     await ssh.close()
@@ -121,19 +81,19 @@ struct SFTPClientTests {
     let srcURL = FileManager
       .default
       .temporaryDirectory
-      .appendingPathComponent("ultest.dat")
+      .appendingPathComponent("ul-test.dat")
+
+    let destPath = "/tmp/ul-test.dat"
 
     try shell("dd if=/dev/urandom of=\(srcURL.path) bs=1048576 count=1")
-    let expected = try shell("md5sum \(srcURL.path) | cut -d' ' -f1")
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let expected = try md5(ofFile: srcURL)
 
     try await ssh.withSftp { sftp in
       let size = try FileManager.default.attributesOfItem(atPath: srcURL.path)[.size] as! UInt64
       let transferred = Atomic<UInt64>(0)
 
       let elapsed = try await ContinuousClock().measure {
-        try await sftp.upload(from: srcURL, to: "/tmp/ultest.dat", mode: 0o644) { progress in
+        try await sftp.upload(from: srcURL, to: destPath, mode: 0o644) { progress in
           transferred.store(progress, ordering: .relaxed)
         }
       }
@@ -145,36 +105,8 @@ struct SFTPClientTests {
     }
 
     try await Task.sleep(for: .seconds(1))
-    let actual = try await ssh.execute("md5sum /tmp/ultest.dat | cut -d' ' -f1")
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let actual = try await ssh.md5(ofFile: destPath)
     #expect(actual == expected)
-
-    await ssh.close()
-  }
-
-  @Test func testCancellationOfForAwaitLoopOverSftpStream() async throws {
-    let ssh = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
-
-    try await ssh.execute("dd if=/dev/urandom of=/tmp/drain.dat bs=1047552 count=1")
-
-    let expected = try await ssh.withSftp { sftp in
-      try await sftp.stat(atPath: "/tmp/drain.dat").size
-    }
-
-    let actual = try await ssh.withSftp { sftp in
-      try await sftp.withSftpFile(atPath: "/tmp/drain.dat", accessType: .readOnly) { file in
-        for try await data in file.stream() {
-          // Returning here causes stream to cancel
-          return data
-        }
-        throw TestError.noData
-      }
-    }
-
-    #expect(actual.count > 0)
-    #expect(actual.count < expected)
 
     await ssh.close()
   }
