@@ -65,10 +65,6 @@ public struct SFTPFile: Sendable {
     try await session.seekFile(id: id, offset: offset)
   }
 
-  public func beginRead(bufferSize: Int) async throws -> SFTPAio {
-    try await session.beginRead(id: id, bufferSize: bufferSize)
-  }
-
   public func read(into buffer: inout [UInt8]) async throws -> Data? {
     try await session.readFile(id: id, into: &buffer)
   }
@@ -76,6 +72,14 @@ public struct SFTPFile: Sendable {
   public func read(maxBytes: Int = 102400) async throws -> Data? {
     var buffer = [UInt8](repeating: 0, count: maxBytes)
     return try await read(into: &buffer)
+  }
+
+  public func write(data: Data) async throws -> Int {
+    try await session.writeFile(id: id, data: data)
+  }
+
+  public func beginRead(bufferSize: Int) async throws -> SFTPAio {
+    try await session.beginRead(id: id, bufferSize: bufferSize)
   }
 
   public func stream(maxBytes: Int = 102400, queueSize: Int = 16) -> SFTPStream {

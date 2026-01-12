@@ -1,6 +1,37 @@
 import CLibSSH
 import Foundation
 
+public enum AccessType: Sendable {
+  case readOnly
+  case writeOnly
+  case readWrite
+
+  func raw(create: Bool = true, truncate: Bool = true) -> Int32 {
+    switch self {
+    case .readOnly:
+      return O_RDONLY
+    case .writeOnly:
+      var result = O_WRONLY
+      if create {
+        result = result | O_CREAT
+      }
+      if truncate {
+        result = result | O_TRUNC
+      }
+      return result
+    case .readWrite:
+      var result = O_RDWR
+      if create {
+        result = result | O_CREAT
+      }
+      if truncate {
+        result = result | O_TRUNC
+      }
+      return result
+    }
+  }
+}
+
 // MARK: - Identifiers
 
 public struct SSHKeyID: Hashable, Sendable {
@@ -54,6 +85,7 @@ enum SSHError: Error {
   case sftpCloseFailed(String)
   case sftpSeekFailed(String)
   case sftpReadFailed(String)
+  case sftpWriteFailed(String)
   case sftpAioNotFound
   case sftpAioBeginReadFailed(String)
   case sftpAioWaitReadFailed(String)
@@ -349,8 +381,8 @@ final actor SSHSession {
   }
 
   func withSftpFile<T>(
-    _id: SFTPFileID = SFTPFileID(), id: SFTPClientID, path: String, accessType: Int32,
-    mode: mode_t = 0,
+    _id: SFTPFileID = SFTPFileID(),
+    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0,
     perform body: (SFTPFile) async throws -> T
   ) async throws -> T {
     let file = try openFile(_id: _id, id: id, path: path, accessType: accessType, mode: mode)
@@ -359,11 +391,11 @@ final actor SSHSession {
   }
 
   func openFile(
-    _id: SFTPFileID = SFTPFileID(), id: SFTPClientID, path: String, accessType: Int32,
-    mode: mode_t = 0
+    _id: SFTPFileID = SFTPFileID(),
+    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0
   ) throws -> SFTPFile {
     let sftp = try sftp(id: id)
-    guard let sftpFile = sftp_open(sftp, path, accessType, mode) else {
+    guard let sftpFile = sftp_open(sftp, path, accessType.raw(), mode) else {
       throw SSHError.sftpOpenFailed(getError())
     }
     files[_id] = TrackedFile(file: sftpFile)
@@ -405,6 +437,21 @@ final actor SSHSession {
     }
 
     return Data(bytes: buffer, count: Int(bytesRead))
+  }
+
+  func writeFile(id: SFTPFileID, data: Data) throws -> Int {
+    let file = try file(id: id)
+
+    let bufferSize = data.count
+    let bytesWritten = data.withUnsafeBytes({ raw in
+      sftp_write(file, raw.baseAddress, bufferSize)
+    })
+
+    if bytesWritten < 0 {
+      throw SSHError.sftpWriteFailed(getError())
+    }
+
+    return bytesWritten
   }
 
   // MARK: - AIO
