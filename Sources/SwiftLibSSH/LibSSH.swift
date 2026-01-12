@@ -420,23 +420,18 @@ final actor SSHSession {
     }
   }
 
-  func readFile(id: SFTPFileID, into buffer: inout [UInt8]) throws -> Data? {
+  func readFile(id: SFTPFileID, into buffer: inout Data, count: Int) throws {
     let file = try file(id: id)
 
-    let bufferSize = buffer.count
     let bytesRead = buffer.withUnsafeMutableBytes({ raw in
-      sftp_read(file, raw.baseAddress, bufferSize)
+      sftp_read(file, raw.baseAddress, count)
     })
 
     if bytesRead < 0 {
       throw SSHError.sftpReadFailed(getError())
     }
 
-    if bytesRead == 0 {
-      return nil
-    }
-
-    return Data(bytes: buffer, count: Int(bytesRead))
+    buffer.count = bytesRead
   }
 
   func writeFile(id: SFTPFileID, data: Data) throws -> Int {
@@ -468,27 +463,26 @@ final actor SSHSession {
     freeAio(aio)
   }
 
-  func beginRead(id: SFTPFileID, bufferSize: Int) throws -> SFTPAio {
+  func beginRead(id: SFTPFileID, count: Int) throws -> SFTPAio {
     let aioId = SFTPAioID(fileId: id)
     let file = try file(id: id)
     let aio = UnsafeMutablePointer<sftp_aio?>.allocate(capacity: 1)
     files[id]?.aios[aioId] = aio
 
-    if sftp_aio_begin_read(file, bufferSize, aio) < 0 {
+    if sftp_aio_begin_read(file, count, aio) < 0 {
       throw SSHError.sftpAioBeginReadFailed(getError())
     }
 
     return SFTPAio(session: self, id: aioId)
   }
 
-  func waitRead(id: SFTPAioID, into buffer: inout [UInt8]) throws -> Data? {
+  func waitRead(id: SFTPAioID, into buffer: inout Data, count: Int) throws {
     guard let aio = files[id.fileId]?.aios.removeValue(forKey: id) else {
       throw SSHError.sftpAioNotFound
     }
 
-    let bufferSize = buffer.count
     let bytesRead = buffer.withUnsafeMutableBytes({ raw in
-      sftp_aio_wait_read(aio, raw.baseAddress, bufferSize)
+      sftp_aio_wait_read(aio, raw.baseAddress, count)
     })
     freeAio(aio)
 
@@ -496,10 +490,6 @@ final actor SSHSession {
       throw SSHError.sftpAioWaitReadFailed(getError())
     }
 
-    if bytesRead == 0 {
-      return nil
-    }
-
-    return Data(bytes: buffer, count: Int(bytesRead))
+    buffer.count = bytesRead
   }
 }

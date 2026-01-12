@@ -13,7 +13,7 @@ public struct SFTPAio: Sendable {
     await session.freeAio(id: id)
   }
 
-  func read(into buffer: inout [UInt8]) async throws -> Data? {
-    try await session.waitRead(id: id, into: &buffer)
+  func read(into buffer: inout Data, count: Int) async throws {
+    try await session.waitRead(id: id, into: &buffer, count: count)
   }
 }
