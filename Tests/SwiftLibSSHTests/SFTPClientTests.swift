@@ -55,6 +55,28 @@ struct SFTPClientTests {
     await ssh.close()
   }
 
+  @Test func testRead() async throws {
+    let ssh = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let srcPath = "/tmp/readtest.dat"
+
+    try await ssh.execute("printf '%b' \"$(printf '\\x%02x' {0..255})\" > \(srcPath)")
+    let expected = Data(Array(0...255))
+
+    let actual = try await ssh.withSftp { sftp in
+      try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+        let result = try await file.read()
+        #expect(try await file.read() == nil)
+        return result
+      }
+    }
+
+    #expect(actual == expected)
+
+    await ssh.close()
+  }
+
   @Test func testDownload() async throws {
     let ssh = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
