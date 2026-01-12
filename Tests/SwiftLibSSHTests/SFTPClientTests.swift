@@ -69,23 +69,49 @@ struct SFTPClientTests {
       .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    try await ssh.withSftp(perform: { sftp in
+    try await ssh.withSftp { sftp in
       let size = try await sftp.stat(atPath: "/tmp/dltest.dat").size
       let transferred = Atomic<UInt64>(0)
 
-      let clock = ContinuousClock()
-      let elapsed = try await clock.measure {
+      let elapsed = try await ContinuousClock().measure {
         try await sftp.download(from: "/tmp/dltest.dat", to: destURL) { progress in
           transferred.store(progress, ordering: .relaxed)
         }
       }
       let speed = Double(size) / 1_048_576 / (elapsed / .seconds(1))
-      print("\(String(format: "%.2f", speed))MB/s")
+      print("Download speed: \(String(format: "%.2f", speed))MB/s")
 
       #expect(transferred.load(ordering: .relaxed) == size)
-    })
+    }
 
     let actual = try shell("md5sum \(destURL.path) | cut -d' ' -f1")
+      .decoded(as: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    #expect(actual == expected)
+
+    await ssh.close()
+  }
+
+  @Test func testUpload() async throws {
+    let ssh = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let srcURL = FileManager
+      .default
+      .temporaryDirectory
+      .appendingPathComponent("ultest.dat")
+
+    try shell("dd if=/dev/urandom of=\(srcURL.path) bs=1048576 count=1")
+    let expected = try shell("md5sum \(srcURL.path) | cut -d' ' -f1")
+      .decoded(as: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    try await ssh.withSftp { sftp in
+      try await sftp.upload(from: srcURL, to: "/tmp/ultest.dat", mode: 0o644)
+    }
+
+    try await Task.sleep(for: .seconds(1))
+    let actual = try await ssh.execute("md5sum /tmp/ultest.dat | cut -d' ' -f1")
       .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
     #expect(actual == expected)
@@ -104,7 +130,7 @@ struct SFTPClientTests {
     }
 
     let actual = try await ssh.withSftp { sftp in
-      try await sftp.withReadOnlySftpFile(atPath: "/tmp/drain.dat") { file in
+      try await sftp.withSftpFile(atPath: "/tmp/drain.dat", accessType: .readOnly) { file in
         for try await data in file.stream() {
           // Returning here causes stream to cancel
           return data
