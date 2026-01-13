@@ -7,7 +7,7 @@ on:
 jobs:
   functional-tests:
     name: Functional Tests
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     
     steps:
     - name: Checkout code
@@ -15,15 +15,19 @@ jobs:
     
     - name: Install libssh
       run: |
-        sudo add-apt-repository -y ppa:kedazo/libssh-0.7.x  # Add ppa for libssh-0.11.x
-        sudo apt-get update
-        sudo apt-get install -y libssh-dev
+        brew install libssh
     
     - name: Setup Swift
       uses: swift-actions/setup-swift@v2
       with:
         swift-version: "6.2"
-    
+
+    - name: Setup Docker on macOS with Colima
+      uses: douglascamata/setup-docker-macos-action@v1
+      with:
+        colima: latest
+        lima: latest
+
     - name: Start SSH test server
       run: docker compose -f Tests/docker-compose.yml up -d
     
