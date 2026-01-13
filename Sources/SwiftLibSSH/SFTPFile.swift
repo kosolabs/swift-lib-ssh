@@ -9,25 +9,30 @@ public enum SFTPFileError: Error {
 
 public struct SFTPStream: Sendable, AsyncSequence {
   private let file: SFTPFile
-  private let count: Int
+  private let offset: UInt64
+  private let length: UInt64
 
-  init(file: SFTPFile, count: Int) {
+  init(file: SFTPFile, offset: UInt64, length: UInt64) {
     self.file = file
-    self.count = count
+    self.offset = offset
+    self.length = length
   }
 
   public class SFTPStreamDataIterator: AsyncIteratorProtocol {
     static let QueueSize: Int = 16
 
     private let file: SFTPFile
-    private let count: Int
-    private var buffer: Data
+    private let offset: UInt64
+    private let length: UInt64
+
+    private var count: UInt64 = 0
+    private var buffer: Data = Data(count: 102400)
     private var queue: [SFTPAio] = []
 
-    init(file: SFTPFile, count: Int) {
+    init(file: SFTPFile, offset: UInt64, length: UInt64) {
       self.file = file
-      self.count = count
-      self.buffer = Data(count: count)
+      self.offset = offset
+      self.length = length
     }
 
     public func next() async throws -> Data? {
@@ -35,24 +40,29 @@ public struct SFTPStream: Sendable, AsyncSequence {
         return nil
       }
 
-      while queue.count < SFTPStreamDataIterator.QueueSize {
-        let aio = try await file.beginRead(count: count)
+      if count == 0 {
+        try await file.seek(offset: offset)
+      }
+
+      while queue.count < SFTPStreamDataIterator.QueueSize && count < length {
+        let size = Swift.min(UInt64(buffer.count), length - count)
+        let aio = try await file.beginRead(length: Int(size))
+        count += size
         queue.append(aio)
       }
-      let aio = queue.removeFirst()
-      try await aio.read(into: &buffer, count: count)
-      if buffer.count == 0 {
-        while !queue.isEmpty {
-          await queue.removeFirst().free()
-        }
+
+      if queue.isEmpty {
         return nil
       }
-      return buffer
+
+      let aio = queue.removeFirst()
+      let bytesRead = try await aio.read(into: &buffer)
+      return bytesRead == 0 ? nil : buffer.prefix(bytesRead)
     }
   }
 
   public func makeAsyncIterator() -> SFTPStreamDataIterator {
-    SFTPStreamDataIterator(file: file, count: count)
+    SFTPStreamDataIterator(file: file, offset: offset, length: length)
   }
 }
 
@@ -69,31 +79,34 @@ public struct SFTPFile: Sendable {
     await session.closeFile(id: id)
   }
 
-  public func seek(offset: UInt64) async throws {
+  func seek(offset: UInt64) async throws {
     try await session.seekFile(id: id, offset: offset)
   }
 
-  public func read(into buffer: inout Data, count: Int) async throws {
-    try await session.readFile(id: id, into: &buffer, count: count)
+  func beginRead(length: Int) async throws -> SFTPAio {
+    try await session.beginRead(id: id, length: length)
   }
 
-  public func read(count: Int = 102400) async throws -> Data? {
-    var buffer = Data(count: count)
-    try await read(into: &buffer, count: count)
-    if buffer.isEmpty { return nil }
-    return buffer
+  public func read(offset: UInt64 = 0, length: UInt64 = UInt64.max) async throws -> Data {
+    try await seek(offset: offset)
+    var result = Data()
+    let bufferSize = 102400
+    var buffer = Data(count: bufferSize)
+    while result.count < length {
+      let bytesToRead = Int(min(UInt64(bufferSize), length - UInt64(result.count)))
+      let bytesRead = try await session.readFile(id: id, into: &buffer, length: bytesToRead)
+      guard bytesRead > 0 else { break }
+      result.append(buffer.prefix(bytesRead))
+    }
+    return result
   }
 
   public func write(data: Data) async throws -> Int {
     try await session.writeFile(id: id, data: data)
   }
 
-  public func beginRead(count: Int) async throws -> SFTPAio {
-    try await session.beginRead(id: id, count: count)
-  }
-
-  public func stream(count: Int = 102400) -> SFTPStream {
-    return SFTPStream(file: self, count: count)
+  public func stream(offset: UInt64 = 0, length: UInt64 = UInt64.max) -> SFTPStream {
+    return SFTPStream(file: self, offset: offset, length: length)
   }
 
   public func download(
