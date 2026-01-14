@@ -10,6 +10,8 @@ public enum SSHClientError: Error {
 }
 
 public struct SSHClient: Sendable {
+  public typealias CommandResult = (status: SSHExitStatus, stdout: Data, stderr: Data)
+
   private let session: SSHSession
 
   private init(host: String, port: UInt32 = 22) async throws {
@@ -89,25 +91,26 @@ public struct SSHClient: Sendable {
   }
 
   @discardableResult
-  public func execute(_ command: String) async throws -> Data {
-    return try await execute(command) { stream in
-      var output = Data()
-      for try await data in stream {
-        output.append(data)
-      }
-      return output
+  public func execute(_ command: String) async throws -> CommandResult {
+    return try await execute(command) { channel in
+      return try await (
+        channel.exitStatus(),
+        channel.read(from: .stdout),
+        channel.read(from: .stderr)
+      )
     }
   }
 
   public func execute<T: Sendable>(
-    _ command: String, perform body: @Sendable (SSHChannelData) async throws -> T
+    _ command: String,
+    perform body: @Sendable (SSHChannel) async throws -> T
   ) async throws -> T {
     try await isConnectedOrThrow()
 
     return try await session.withChannel { channel in
       try await channel.withOpenedSession {
         try await channel.execute(command: command)
-        return try await body(channel.stream())
+        return try await body(channel)
       }
     }
   }
