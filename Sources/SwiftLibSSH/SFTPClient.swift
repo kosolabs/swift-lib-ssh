@@ -9,31 +9,31 @@ public struct SFTPClient: Sendable {
     self.id = id
   }
 
-  func close() async {
+  public func close() async {
     await session.freeSftp(id: id)
   }
 
-  func makeDirectory(atPath path: String, mode: mode_t = 0o755) async throws {
-    try await session.makeDirectory(id: id, atPath: path, mode: mode)
+  public func createDirectory(atPath path: String, mode: mode_t = 0o755) async throws {
+    try await session.mkdir(id: id, atPath: path, mode: mode)
   }
 
-  func stat(atPath path: String) async throws -> SFTPAttributes {
+  public func removeDirectory(atPath path: String) async throws {
+    try await session.rmdir(id: id, atPath: path)
+  }
+
+  public func attributes(atPath path: String) async throws -> SFTPAttributes {
     try await session.stat(id: id, path: path)
   }
 
-  func lstat(atPath path: String) async throws -> SFTPAttributes {
-    try await session.lstat(id: id, path: path)
+  public func setPermissions(atPath path: String, mode: mode_t) async throws {
+    try await session.setMode(id: id, path: path, mode: mode)
   }
 
-  func setPermissions(atPath path: String, mode: mode_t) async throws {
-    try await session.setPermissions(id: id, path: path, mode: mode)
-  }
-
-  func limits() async throws -> SFTPLimits {
+  public func limits() async throws -> SFTPLimits {
     try await session.limits(id: id)
   }
 
-  func withSftpFile<T: Sendable>(
+  public func withSftpFile<T: Sendable>(
     atPath path: String, accessType: AccessType, mode: mode_t = 0,
     perform: @Sendable (SFTPFile) async throws -> T
   ) async throws -> T {
@@ -41,7 +41,7 @@ public struct SFTPClient: Sendable {
       id: id, path: path, accessType: accessType, mode: mode, perform: perform)
   }
 
-  func download(
+  public func download(
     from remotePath: String, to localURL: URL,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
@@ -50,7 +50,7 @@ public struct SFTPClient: Sendable {
     }
   }
 
-  func upload(
+  public func upload(
     from localURL: URL, to remotePath: String, mode: mode_t = 0,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {

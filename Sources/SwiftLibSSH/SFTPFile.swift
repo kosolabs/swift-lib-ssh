@@ -4,7 +4,7 @@ public enum SFTPFileError: Error {
   case createFileFailed
   case openFileForReadFailed
   case openFileForWriteFailed
-  case oops
+  case writeFailed
 }
 
 public struct SFTPStream: Sendable, AsyncSequence {
@@ -26,8 +26,8 @@ public struct SFTPStream: Sendable, AsyncSequence {
     private let length: UInt64
 
     private var count: UInt64 = 0
-    private var buffer: Data = Data(count: 102400)
-    private var queue: [SFTPAio] = []
+    private var buffer: Data = Data(count: SSHSession.BufferSize)
+    private var queue: [SFTPAioReadContext] = []
 
     init(file: SFTPFile, offset: UInt64, length: UInt64) {
       self.file = file
@@ -66,6 +66,31 @@ public struct SFTPStream: Sendable, AsyncSequence {
   }
 }
 
+public class SFTPWriterContext {
+  static let QueueSize: Int = 16
+
+  private let file: SFTPFile
+  private var queue: [SFTPAioWriteContext] = []
+
+  init(file: SFTPFile) {
+    self.file = file
+  }
+
+  public func write(data: Data) async throws {
+    while queue.count >= SFTPWriterContext.QueueSize {
+      try await queue.removeFirst().flush()
+    }
+    let aio = try await file.beginWrite(data: data)
+    queue.append(aio)
+  }
+
+  public func flush() async throws {
+    while !queue.isEmpty {
+      try await queue.removeFirst().flush()
+    }
+  }
+}
+
 public struct SFTPFile: Sendable {
   private let session: SSHSession
   private let id: SFTPFileID
@@ -83,17 +108,12 @@ public struct SFTPFile: Sendable {
     try await session.seekFile(id: id, offset: offset)
   }
 
-  func beginRead(length: Int) async throws -> SFTPAio {
-    try await session.beginRead(id: id, length: length)
-  }
-
   public func read(offset: UInt64 = 0, length: UInt64 = UInt64.max) async throws -> Data {
     try await seek(offset: offset)
     var result = Data()
-    let bufferSize = 102400
-    var buffer = Data(count: bufferSize)
+    var buffer = Data(count: SSHSession.BufferSize)
     while result.count < length {
-      let bytesToRead = Int(min(UInt64(bufferSize), length - UInt64(result.count)))
+      let bytesToRead = Int(min(UInt64(SSHSession.BufferSize), length - UInt64(result.count)))
       let bytesRead = try await session.readFile(id: id, into: &buffer, length: bytesToRead)
       guard bytesRead > 0 else { break }
       result.append(buffer.prefix(bytesRead))
@@ -101,12 +121,35 @@ public struct SFTPFile: Sendable {
     return result
   }
 
-  public func write(data: Data) async throws -> Int {
-    try await session.writeFile(id: id, data: data)
+  public func write(data: Data) async throws {
+    for curr in stride(from: 0, to: data.count, by: SSHSession.BufferSize) {
+      let next = min(data.count, curr + SSHSession.BufferSize)
+      let buffer = data.subdata(in: curr..<next)
+      let bytesWritten = try await session.writeFile(id: id, data: buffer)
+      if bytesWritten != buffer.count {
+        throw SFTPFileError.writeFailed
+      }
+    }
+  }
+
+  func beginRead(length: Int) async throws -> SFTPAioReadContext {
+    try await session.beginRead(id: id, length: length)
   }
 
   public func stream(offset: UInt64 = 0, length: UInt64 = UInt64.max) -> SFTPStream {
     return SFTPStream(file: self, offset: offset, length: length)
+  }
+
+  func beginWrite(data: Data) async throws -> SFTPAioWriteContext {
+    try await session.beginWrite(id: id, buffer: data, length: data.count)
+  }
+
+  public func withAsyncWriter(
+    perform body: (SFTPWriterContext) async throws -> Void
+  ) async throws {
+    let writer = SFTPWriterContext(file: self)
+    try await body(writer)
+    try await writer.flush()
   }
 
   public func download(
@@ -140,17 +183,12 @@ public struct SFTPFile: Sendable {
     defer { try? fp.close() }
 
     var count: UInt64 = 0
-    while true {
-      guard let data = try fp.read(upToCount: 102400) else {
-        break
+    try await withAsyncWriter { writer in
+      while let data = try fp.read(upToCount: SSHSession.BufferSize) {
+        try await writer.write(data: data)
+        count += UInt64(data.count)
+        progress?(count)
       }
-
-      let bytesWritten = try await write(data: data)
-      if bytesWritten != data.count {
-        throw SFTPFileError.oops
-      }
-      count += UInt64(data.count)
-      progress?(count)
     }
   }
 }

@@ -26,8 +26,9 @@ func shell(_ command: String) throws -> (stdout: Data, stderr: Data) {
 }
 
 func md5(ofFile url: URL, offset: UInt64 = 0, length: UInt64? = nil) throws -> String {
-  let countArg = length.map { "count=\($0)" } ?? ""
-  return try shell("dd if=\(url.path) bs=1 skip=\(offset) \(countArg) | md5sum")
+  let command =
+    "tail -c +\(offset + 1) \(url.path) \(length.map { " | head -c \($0)" } ?? "") | md5sum"
+  return try shell(command)
     .stdout
     .decoded(as: .utf8)
     .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -44,8 +45,9 @@ extension Data {
 
 extension SSHClient {
   func md5(ofFile path: String, offset: UInt64 = 0, length: UInt64? = nil) async throws -> String {
-    let countArg = length.map { "count=\($0)" } ?? ""
-    return try await self.execute("dd if=\(path) bs=1 skip=\(offset) \(countArg) | md5sum")
+    let command =
+      "tail -c +\(offset + 1) \(path) \(length.map { " | head -c \($0)" } ?? "") | md5sum"
+    return try await self.execute(command)
       .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
       .split(separator: " ")[0]
@@ -82,7 +84,7 @@ struct SFTPFileTests {
     let offset = 153600 as UInt64
     let length = 153600 as UInt64
 
-    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1048576 count=1")
+    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
     let expected = try await ssh.md5(ofFile: srcPath, offset: offset, length: length)
 
     let actual = try await ssh.withSftp { sftp in
@@ -102,7 +104,7 @@ struct SFTPFileTests {
 
     let srcPath = "/tmp/read-big-test.dat"
 
-    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1048576 count=1")
+    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
     let expected = try await ssh.md5(ofFile: srcPath)
 
     let actual = try await ssh.withSftp { sftp in
@@ -148,7 +150,7 @@ struct SFTPFileTests {
     let offset = 153600 as UInt64
     let length = 153600 as UInt64
 
-    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1048576 count=1")
+    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
     let expected = try await ssh.md5(ofFile: srcPath, offset: offset, length: length)
 
     let actual = try await ssh.withSftp { sftp in
@@ -172,7 +174,7 @@ struct SFTPFileTests {
 
     let srcPath = "/tmp/stream-big-test.dat"
 
-    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1048576 count=1")
+    try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
     let expected = try await ssh.md5(ofFile: srcPath)
 
     let actual = try await ssh.withSftp { sftp in
@@ -194,10 +196,10 @@ struct SFTPFileTests {
     let ssh = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    try await ssh.execute("dd if=/dev/urandom of=/tmp/drain.dat bs=1047552 count=1")
+    try await ssh.execute("dd if=/dev/urandom of=/tmp/drain.dat bs=1M count=1")
 
     let expected = try await ssh.withSftp { sftp in
-      try await sftp.stat(atPath: "/tmp/drain.dat").size
+      try await sftp.attributes(atPath: "/tmp/drain.dat").size
     }
 
     let actual = try await ssh.withSftp { sftp in
@@ -216,21 +218,48 @@ struct SFTPFileTests {
     await ssh.close()
   }
 
-  @Test func testStatAndSetPermissions() async throws {
+  @Test func testWriteSmall() async throws {
     let ssh = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    // Prepare a temp file
-    try await ssh.execute("rm -f /tmp/sftp-perm.txt && touch /tmp/sftp-perm.txt")
+    let destPath = "/tmp/write-small-test.dat"
 
-    try await ssh.withSftp(perform: { sftp in
-      let before = try await sftp.stat(atPath: "/tmp/sftp-perm.txt")
-      #expect((before.permissions & 0o777) != 0x644)
+    let data =
+      Data((0..<1024).map { _ in UInt8.random(in: .min ... .max) })
+    let expected = data.md5()
 
-      try await sftp.setPermissions(atPath: "/tmp/sftp-perm.txt", mode: 0o644)
-      let after = try await sftp.stat(atPath: "/tmp/sftp-perm.txt")
-      #expect((after.permissions & 0o777) == 0o644)
-    })
+    try await ssh.withSftp { sftp in
+      try await sftp.withSftpFile(atPath: destPath, accessType: .writeOnly, mode: 0o644) { file in
+        try await file.write(data: data)
+      }
+    }
+
+    let actual = try await ssh.md5(ofFile: destPath)
+
+    #expect(actual == expected)
+
+    await ssh.close()
+  }
+
+  @Test func testWriteBig() async throws {
+    let ssh = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let destPath = "/tmp/write-big-test.dat"
+
+    let data =
+      Data((0..<1_048_576).map { _ in UInt8.random(in: .min ... .max) })
+    let expected = data.md5()
+
+    try await ssh.withSftp { sftp in
+      try await sftp.withSftpFile(atPath: destPath, accessType: .writeOnly, mode: 0o644) { file in
+        try await file.write(data: data)
+      }
+    }
+
+    let actual = try await ssh.md5(ofFile: destPath)
+
+    #expect(actual == expected)
 
     await ssh.close()
   }
