@@ -112,6 +112,7 @@ public struct SSHClient: Sendable {
     try await session.createSftp()
   }
 
+  @discardableResult
   public func withSftp<T: Sendable>(
     perform body: @Sendable (SFTPClient) async throws -> T
   ) async throws -> T {

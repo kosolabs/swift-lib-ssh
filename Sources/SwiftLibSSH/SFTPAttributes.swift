@@ -2,10 +2,33 @@ import CLibSSH
 import Foundation
 
 public struct SFTPAttributes: Sendable {
+  public enum `Type`: Sendable {
+    case regular
+    case directory
+    case symlink
+    case special
+    case unknown
+
+    init(from: UInt8) {
+      switch Int32(from) {
+      case SSH_FILEXFER_TYPE_REGULAR:
+        self = .regular
+      case SSH_FILEXFER_TYPE_DIRECTORY:
+        self = .directory
+      case SSH_FILEXFER_TYPE_SYMLINK:
+        self = .symlink
+      case SSH_FILEXFER_TYPE_SPECIAL:
+        self = .special
+      default:
+        self = .unknown
+      }
+    }
+  }
+
   let name: String?
   let longname: String?
   let flags: UInt32
-  let type: UInt8
+  let type: Type
   let size: UInt64
   let uid: UInt32
   let gid: UInt32
@@ -32,7 +55,7 @@ public struct SFTPAttributes: Sendable {
       name: string(from: raw.name),
       longname: string(from: raw.longname),
       flags: raw.flags,
-      type: raw.type,
+      type: .init(from: raw.type),
       size: raw.size,
       uid: raw.uid,
       gid: raw.gid,
