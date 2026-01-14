@@ -455,13 +455,6 @@ final actor SSHSession {
     aio.deallocate()
   }
 
-  func freeAio(id: SFTPAioID) {
-    guard let aio = files[id.fileId]?.aios.removeValue(forKey: id) else {
-      return
-    }
-    freeAio(aio)
-  }
-
   func withFreeingAio<T>(
     id: SFTPAioID,
     perform body: (UnsafeMutablePointer<sftp_aio?>) throws -> T
@@ -469,10 +462,7 @@ final actor SSHSession {
     guard let aio = files[id.fileId]?.aios.removeValue(forKey: id) else {
       throw SSHError.sftpAioNotFound
     }
-    defer {
-      sftp_aio_free(aio.pointee)
-      aio.deallocate()
-    }
+    defer { freeAio(aio) }
     return try body(aio)
   }
 
