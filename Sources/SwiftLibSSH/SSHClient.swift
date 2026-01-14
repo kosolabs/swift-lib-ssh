@@ -22,42 +22,6 @@ public struct SSHClient: Sendable {
     try await session.connect()
   }
 
-  public func authenticate(user: String) async throws {
-    if (try? await session.userauthAgent(user)) != nil {
-      return
-    }
-
-    let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-    let defaultKeys = [
-      "\(homeDir)/.ssh/id_rsa",
-      "\(homeDir)/.ssh/id_ecdsa",
-      "\(homeDir)/.ssh/id_ed25519",
-      "\(homeDir)/.ssh/id_dsa",
-    ]
-
-    for keyPath in defaultKeys {
-      if FileManager.default.fileExists(atPath: keyPath) {
-        do {
-          try await authenticate(user: user, privateKeyPath: keyPath)
-          return
-        } catch {
-          // Continue to next key
-        }
-      }
-    }
-
-    throw SSHClientError.authenticationFailed("Failed to authenticate with agent or default keys")
-  }
-
-  public static func connect(host: String, port: UInt32 = 22, user: String) async throws
-    -> SSHClient
-  {
-    let client = try await SSHClient(host: host, port: port)
-    try await client.connect()
-    try await client.authenticate(user: user)
-    return client
-  }
-
   private func authenticate(user: String, password: String) async throws {
     try await session.authenticate(user: user, password: password)
   }

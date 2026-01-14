@@ -31,7 +31,12 @@ public struct SFTPAioWriteContext: Sendable {
     self.length = length
   }
 
+  @discardableResult
   func flush() async throws -> Int {
-    try await session.waitWrite(id: id)
+    let bytesWritten = try await session.waitWrite(id: id)
+    if bytesWritten != length {
+      throw SFTPAioContext.flushFailed
+    }
+    return bytesWritten
   }
 }
