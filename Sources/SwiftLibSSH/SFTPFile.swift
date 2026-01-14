@@ -7,7 +7,7 @@ public enum SFTPFileError: Error {
   case writeFailed
 }
 
-public struct SFTPStream: Sendable, AsyncSequence {
+public class SFTPReader: AsyncSequence {
   private let file: SFTPFile
   private let offset: UInt64
   private let length: UInt64
@@ -18,7 +18,11 @@ public struct SFTPStream: Sendable, AsyncSequence {
     self.length = length
   }
 
-  public class SFTPStreamDataIterator: AsyncIteratorProtocol {
+  public func makeAsyncIterator() -> Iterator {
+    Iterator(file: file, offset: offset, length: length)
+  }
+
+  public class Iterator: AsyncIteratorProtocol {
     static let QueueSize: Int = 16
 
     private let file: SFTPFile
@@ -44,7 +48,7 @@ public struct SFTPStream: Sendable, AsyncSequence {
         try await file.seek(offset: offset)
       }
 
-      while queue.count < SFTPStreamDataIterator.QueueSize && count < length {
+      while queue.count < Iterator.QueueSize && count < length {
         let size = Swift.min(UInt64(buffer.count), length - count)
         let aio = try await file.beginRead(length: Int(size))
         count += size
@@ -60,13 +64,9 @@ public struct SFTPStream: Sendable, AsyncSequence {
       return bytesRead == 0 ? nil : buffer.prefix(bytesRead)
     }
   }
-
-  public func makeAsyncIterator() -> SFTPStreamDataIterator {
-    SFTPStreamDataIterator(file: file, offset: offset, length: length)
-  }
 }
 
-public class SFTPWriterContext {
+public class SFTPWriter {
   static let QueueSize: Int = 16
 
   private let file: SFTPFile
@@ -77,8 +77,8 @@ public class SFTPWriterContext {
   }
 
   public func write(data: Data) async throws {
-    while queue.count >= SFTPWriterContext.QueueSize {
-      try await queue.removeFirst().flush()
+    while queue.count >= SFTPWriter.QueueSize {
+      _ = try await queue.removeFirst().flush()
     }
     let aio = try await file.beginWrite(data: data)
     queue.append(aio)
@@ -86,7 +86,7 @@ public class SFTPWriterContext {
 
   public func flush() async throws {
     while !queue.isEmpty {
-      try await queue.removeFirst().flush()
+      _ = try await queue.removeFirst().flush()
     }
   }
 }
@@ -136,8 +136,8 @@ public struct SFTPFile: Sendable {
     try await session.beginRead(id: id, length: length)
   }
 
-  public func stream(offset: UInt64 = 0, length: UInt64 = UInt64.max) -> SFTPStream {
-    return SFTPStream(file: self, offset: offset, length: length)
+  public func stream(offset: UInt64 = 0, length: UInt64 = UInt64.max) -> SFTPReader {
+    return SFTPReader(file: self, offset: offset, length: length)
   }
 
   func beginWrite(data: Data) async throws -> SFTPAioWriteContext {
@@ -145,9 +145,9 @@ public struct SFTPFile: Sendable {
   }
 
   public func withAsyncWriter(
-    perform body: (SFTPWriterContext) async throws -> Void
+    perform body: (SFTPWriter) async throws -> Void
   ) async throws {
-    let writer = SFTPWriterContext(file: self)
+    let writer = SFTPWriter(file: self)
     try await body(writer)
     try await writer.flush()
   }

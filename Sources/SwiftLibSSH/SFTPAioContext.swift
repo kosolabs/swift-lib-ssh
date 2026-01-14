@@ -15,10 +15,6 @@ public struct SFTPAioReadContext: Sendable {
     self.length = length
   }
 
-  func free() async {
-    await session.freeAio(id: id)
-  }
-
   func read(into buffer: inout Data) async throws -> Int {
     try await session.waitRead(id: id, into: &buffer, length: length)
   }
@@ -35,14 +31,7 @@ public struct SFTPAioWriteContext: Sendable {
     self.length = length
   }
 
-  func free() async {
-    await session.freeAio(id: id)
-  }
-
-  func flush() async throws {
-    let bytesWritten = try await session.waitWrite(id: id)
-    if bytesWritten != length {
-      throw SFTPAioContext.flushFailed
-    }
+  func flush() async throws -> Int {
+    try await session.waitWrite(id: id)
   }
 }
