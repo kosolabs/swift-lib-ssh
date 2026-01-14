@@ -26,9 +26,9 @@ struct LibSSHTests {
           command: "dd if=/dev/urandom bs=\(bs) count=\(count) of=/dev/stdout")
 
         let task = Task {
-          let stream = channel.stream()
+          let stream = channel.stream(from: .stdout)
           var result = 0
-          var iterator = stream.makeAsyncIterator()
+          let iterator = stream.makeAsyncIterator()
           while let data = try await iterator.next() {
             result += data.count
           }
@@ -61,7 +61,7 @@ struct LibSSHTests {
         try await channel.execute(
           command: "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout")
 
-        for try await data: Data in channel.stream() {
+        for try await data: Data in channel.stream(from: .stdout) {
           // Returning here causes stream to cancel
           return data
         }

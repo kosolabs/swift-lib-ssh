@@ -8,12 +8,66 @@ struct SSHClientTests {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    let actual = try await client.execute("whoami")
+    let proc = try await client.execute("whoami")
+    let actual = try proc.stdout
       .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     let expected = "myuser"
     #expect(actual == expected)
+    #expect(proc.status.code == 0)
+
+    await client.close()
+  }
+
+  @Test func testExecuteInvalidCommand() async throws {
+    let client = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let proc = try await client.execute("blah")
+
+    #expect(proc.status.code == 127)
+
+    await client.close()
+  }
+
+  @Test func testExecuteWithStderr() async throws {
+    let client = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let proc = try await client.execute("echo 'custom error' >&2")
+
+    let stderr = try proc.stderr
+      .decoded(as: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(stderr == "custom error")
+    #expect(proc.status.code == 0)
+
+    await client.close()
+  }
+
+  @Test func testExecuteWithSignal() async throws {
+    let client = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let proc = try await client.execute("kill -9 $$")
+
+    #expect(proc.status.code == -1)
+    #expect(proc.status.signal == "KILL")
+
+    await client.close()
+  }
+
+  @Test func testExecuteWithCoreDump() async throws {
+    let client = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let proc = try await client.execute("bash -c 'ulimit -c unlimited; kill -ABRT $$'")
+
+    #expect(proc.status.code == -1)
+    #expect(proc.status.signal == "ABRT")
+    #expect(proc.status.coreDumped == true)
 
     await client.close()
   }
@@ -22,11 +76,12 @@ struct SSHClientTests {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
 
-    let actual = try await client.execute("cat lorem-ipsum.txt")
-      .decoded(as: .utf8)
+    let proc = try await client.execute("cat lorem-ipsum.txt")
+    let actual = try proc.stdout.decoded(as: .utf8)
 
     let expected = try String(contentsOfFile: "Tests/Data/lorem-ipsum.txt", encoding: .utf8)
     #expect(actual == expected)
+    #expect(proc.status.code == 0)
 
     await client.close()
   }
@@ -36,12 +91,14 @@ struct SSHClientTests {
       host: "localhost", port: 2222, user: "myuser", privateKeyPath: "Tests/Data/id_ed25519"
     )
 
-    let actual = try await client.execute("whoami")
+    let proc = try await client.execute("whoami")
+    let actual = try proc.stdout
       .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     let expected = "myuser"
     #expect(actual == expected)
+    #expect(proc.status.code == 0)
 
     await client.close()
   }

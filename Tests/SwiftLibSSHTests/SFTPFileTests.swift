@@ -6,7 +6,7 @@ import Testing
 @testable import SwiftLibSSH
 
 @discardableResult
-func shell(_ command: String) throws -> (stdout: Data, stderr: Data) {
+func shell(_ command: String) throws -> (status: Int32, stdout: Data, stderr: Data) {
   let process = Process()
   let stdout = Pipe()
   let stderr = Pipe()
@@ -20,14 +20,16 @@ func shell(_ command: String) throws -> (stdout: Data, stderr: Data) {
   process.waitUntilExit()
 
   return (
+    process.terminationStatus,
     stdout.fileHandleForReading.readDataToEndOfFile(),
     stderr.fileHandleForReading.readDataToEndOfFile()
   )
 }
 
-func md5(ofFile url: URL, offset: UInt64 = 0, length: UInt64? = nil) throws -> String {
-  let command =
-    "tail -c +\(offset + 1) \(url.path) \(length.map { " | head -c \($0)" } ?? "") | md5sum"
+func md5(
+  ofFile path: String, offset: UInt64 = 0, length: UInt64 = UInt64(UInt32.max)
+) throws -> String {
+  let command = "tail -c +\(offset + 1) \(path) | head -c \(length) | md5sum"
   return try shell(command)
     .stdout
     .decoded(as: .utf8)
@@ -44,10 +46,12 @@ extension Data {
 }
 
 extension SSHClient {
-  func md5(ofFile path: String, offset: UInt64 = 0, length: UInt64? = nil) async throws -> String {
-    let command =
-      "tail -c +\(offset + 1) \(path) \(length.map { " | head -c \($0)" } ?? "") | md5sum"
+  func md5(
+    ofFile path: String, offset: UInt64 = 0, length: UInt64 = UInt64(UInt32.max)
+  ) async throws -> String {
+    let command = "tail -c +\(offset + 1) \(path) | head -c \(length) | md5sum"
     return try await self.execute(command)
+      .stdout
       .decoded(as: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
       .split(separator: " ")[0]

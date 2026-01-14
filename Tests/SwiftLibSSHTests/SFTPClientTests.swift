@@ -113,7 +113,7 @@ struct SFTPClientTests {
       #expect(transferred.load(ordering: .relaxed) == size)
     }
 
-    let actual = try md5(ofFile: destURL)
+    let actual = try md5(ofFile: destURL.path)
     #expect(actual == expected)
 
     await ssh.close()
@@ -131,7 +131,7 @@ struct SFTPClientTests {
     let destPath = "/tmp/ul-test.dat"
 
     try shell("dd if=/dev/urandom of=\(srcURL.path) bs=1M count=50")
-    let expected = try md5(ofFile: srcURL)
+    let expected = try md5(ofFile: srcURL.path)
 
     try await ssh.withSftp { sftp in
       let size = try FileManager.default.attributesOfItem(atPath: srcURL.path)[.size] as! UInt64

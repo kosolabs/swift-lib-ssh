@@ -2,32 +2,39 @@ import Foundation
 
 public struct SSHChannelData: Sendable, AsyncSequence {
   private let channel: SSHChannel
-  private let bufferSize: Int
+  private let stream: StreamType
+  private let length: Int
 
-  init(channel: SSHChannel, bufferSize: Int) {
+  init(channel: SSHChannel, stream: StreamType, length: Int) {
     self.channel = channel
-    self.bufferSize = bufferSize
+    self.stream = stream
+    self.length = length
   }
 
-  public struct SSHChannelDataIterator: AsyncIteratorProtocol {
-    private let channel: SSHChannel
-    private var buffer: [UInt8]
+  public func makeAsyncIterator() -> Iterator {
+    Iterator(channel: channel, stream: stream, length: length)
+  }
 
-    init(channel: SSHChannel, bufferSize: Int) {
+  public class Iterator: AsyncIteratorProtocol {
+    private let channel: SSHChannel
+    private let stream: StreamType
+    private let length: Int
+    private var buffer: Data
+
+    init(channel: SSHChannel, stream: StreamType, length: Int) {
       self.channel = channel
-      self.buffer = [UInt8](repeating: 0, count: bufferSize)
+      self.stream = stream
+      self.length = length
+      self.buffer = Data(count: length)
     }
 
-    public mutating func next() async throws -> Data? {
+    public func next() async throws -> Data? {
       if Task.isCancelled {
         return nil
       }
-      return try await channel.read(into: &buffer)
-    }
-  }
 
-  public func makeAsyncIterator() -> SSHChannelDataIterator {
-    SSHChannelDataIterator(channel: channel, bufferSize: bufferSize)
+      return try await channel.read(into: &buffer, length: length, stream: stream)
+    }
   }
 }
 
@@ -62,16 +69,25 @@ public struct SSHChannel: Sendable {
     try await session.execute(onChannel: id, command: command)
   }
 
-  public func read(into buffer: inout [UInt8]) async throws -> Data? {
-    try await session.readChannel(id: id, into: &buffer)
+  public func exitStatus() async throws -> SSHExitStatus {
+    try await session.getExitState(onChannel: id)
   }
 
-  public func read(maxBytes: Int = 1248) async throws -> Data? {
-    var buffer = [UInt8](repeating: 0, count: maxBytes)
-    return try await read(into: &buffer)
+  func read(into buffer: inout Data, length: Int, stream: StreamType) async throws -> Data? {
+    let bytesRead = try await session.readChannel(
+      id: id, into: &buffer, length: length, stream: stream)
+    return bytesRead == 0 ? nil : buffer.prefix(bytesRead)
   }
 
-  public func stream(maxBytes: Int = 1248) -> SSHChannelData {
-    return SSHChannelData(channel: self, bufferSize: maxBytes)
+  public func read(from: StreamType) async throws -> Data {
+    var output = Data()
+    for try await data in stream(from: from) {
+      output.append(data)
+    }
+    return output
+  }
+
+  public func stream(from: StreamType, length: Int = 1248) -> SSHChannelData {
+    return SSHChannelData(channel: self, stream: from, length: length)
   }
 }

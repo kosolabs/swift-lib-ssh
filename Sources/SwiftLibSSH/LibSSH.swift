@@ -32,6 +32,11 @@ public enum AccessType: Sendable {
   }
 }
 
+public enum StreamType: Int32, Sendable {
+  case stdout = 0
+  case stderr = 1
+}
+
 // MARK: - Identifiers
 
 public struct SSHKeyID: Hashable, Sendable {
@@ -72,6 +77,7 @@ enum SSHError: Error {
   case channelOpenSessionFailed(String)
   case channelReadFailed(String)
   case channelRequestExecFailed(String)
+  case channelGetExitStateFailed(String)
   case sftpNewFailed
   case sftpNotFound
   case sftpInitFailed(String)
@@ -273,23 +279,34 @@ final actor SSHSession {
     }
   }
 
-  func readChannel(id: SSHChannelID, into buffer: inout [UInt8]) throws -> Data? {
+  func getExitState(onChannel id: SSHChannelID) throws -> SSHExitStatus {
     let channel = try channel(id: id)
 
-    let bufferSize = buffer.count
+    var code: Int32 = 0
+    var signal: UnsafeMutablePointer<CChar>? = nil
+    var coreDumped: Int32 = 0
+
+    guard ssh_channel_get_exit_state(channel, &code, &signal, &coreDumped) == SSH_OK else {
+      throw SSHError.channelGetExitStateFailed(getError())
+    }
+    defer { ssh_string_free_char(signal) }
+
+    return SSHExitStatus.from(code: code, signal: signal, coreDumped: coreDumped)
+  }
+
+  func readChannel(
+    id: SSHChannelID, into buffer: inout Data, length: Int, stream: StreamType
+  ) throws -> Int {
+    let channel = try channel(id: id)
     let bytesRead = buffer.withUnsafeMutableBytes({ raw in
-      ssh_channel_read(channel, raw.baseAddress, UInt32(bufferSize), 0)
+      Int(ssh_channel_read(channel, raw.baseAddress, UInt32(length), stream.rawValue))
     })
 
     if bytesRead < 0 {
       throw SSHError.channelReadFailed(getError())
     }
 
-    if bytesRead == 0 {
-      return nil
-    }
-
-    return Data(bytes: buffer, count: Int(bytesRead))
+    return bytesRead
   }
 
   // MARK: - SFTP Operations
