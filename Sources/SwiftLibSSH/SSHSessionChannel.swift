@@ -1,11 +1,11 @@
 import Foundation
 
 public struct SSHChannelData: Sendable, AsyncSequence {
-  private let channel: SSHChannel
+  private let channel: SSHSessionChannel
   private let stream: StreamType
   private let length: Int
 
-  init(channel: SSHChannel, stream: StreamType, length: Int) {
+  init(channel: SSHSessionChannel, stream: StreamType, length: Int) {
     self.channel = channel
     self.stream = stream
     self.length = length
@@ -16,12 +16,12 @@ public struct SSHChannelData: Sendable, AsyncSequence {
   }
 
   public class Iterator: AsyncIteratorProtocol {
-    private let channel: SSHChannel
+    private let channel: SSHSessionChannel
     private let stream: StreamType
     private let length: Int
     private var buffer: Data
 
-    init(channel: SSHChannel, stream: StreamType, length: Int) {
+    init(channel: SSHSessionChannel, stream: StreamType, length: Int) {
       self.channel = channel
       self.stream = stream
       self.length = length
@@ -38,27 +38,13 @@ public struct SSHChannelData: Sendable, AsyncSequence {
   }
 }
 
-public struct SSHChannel: Sendable {
+public struct SSHSessionChannel: Sendable {
   private let session: SSHSession
   private let id: SSHChannelID
 
   init(session: SSHSession, id: SSHChannelID) {
     self.session = session
     self.id = id
-  }
-
-  public func free() async {
-    await session.freeChannel(id: id)
-  }
-
-  public func withOpenedSession<T: Sendable>(
-    perform body: @Sendable () async throws -> T
-  ) async throws -> T {
-    try await session.withOpenedChannelSession(id: id, perform: body)
-  }
-
-  public func openSession() async throws {
-    try await session.openChannelSession(id: id)
   }
 
   public func close() async {
@@ -70,7 +56,7 @@ public struct SSHChannel: Sendable {
   }
 
   public func exitStatus() async throws -> SSHExitStatus {
-    try await session.getExitState(onChannel: id)
+    try await session.exitState(onChannel: id)
   }
 
   func read(into buffer: inout Data, length: Int, stream: StreamType) async throws -> Data? {

@@ -212,7 +212,7 @@ struct SFTPFileTests {
           // Returning here causes stream to cancel
           return data
         }
-        throw TestError.noData
+        fatalError("Stream should not complete")
       }
     }
 
