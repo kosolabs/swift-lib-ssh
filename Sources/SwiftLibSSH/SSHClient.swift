@@ -103,15 +103,13 @@ public struct SSHClient: Sendable {
 
   public func execute<T: Sendable>(
     _ command: String,
-    perform body: @Sendable (SSHChannel) async throws -> T
+    perform body: @Sendable (SSHSessionChannel) async throws -> T
   ) async throws -> T {
     try await isConnectedOrThrow()
 
-    return try await session.withChannel { channel in
-      try await channel.withOpenedSession {
-        try await channel.execute(command: command)
-        return try await body(channel)
-      }
+    return try await session.withSessionChannel { channel in
+      try await channel.execute(command: command)
+      return try await body(channel)
     }
   }
 }

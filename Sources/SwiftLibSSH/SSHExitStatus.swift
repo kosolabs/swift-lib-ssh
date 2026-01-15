@@ -1,5 +1,5 @@
 public struct SSHExitStatus: Sendable {
-  let code: Int
+  let code: UInt8?
   let signal: String?
   let coreDumped: Bool
 
@@ -7,7 +7,7 @@ public struct SSHExitStatus: Sendable {
     code: Int32, signal: UnsafeMutablePointer<CChar>?, coreDumped: Int32
   ) -> SSHExitStatus {
     return SSHExitStatus(
-      code: Int(code),
+      code: code == -1 ? nil : UInt8(code),
       signal: signal.map({ s in String(cString: s) }),
       coreDumped: coreDumped != 0)
   }

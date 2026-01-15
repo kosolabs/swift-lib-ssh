@@ -20,6 +20,27 @@ struct SSHClientTests {
     await client.close()
   }
 
+  @Test func testExecuteMoreThanOnce() async throws {
+    let client = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let expected = "myuser"
+
+    let actual1 = try await client.execute("whoami")
+      .stdout
+      .decoded(as: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    #expect(actual1 == expected)
+
+    let actual2 = try await client.execute("whoami")
+      .stdout
+      .decoded(as: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    #expect(actual2 == expected)
+
+    await client.close()
+  }
+
   @Test func testExecuteInvalidCommand() async throws {
     let client = try await SSHClient.connect(
       host: "localhost", port: 2222, user: "myuser", password: "mypass")
@@ -53,7 +74,7 @@ struct SSHClientTests {
 
     let proc = try await client.execute("kill -9 $$")
 
-    #expect(proc.status.code == -1)
+    #expect(proc.status.code == nil)
     #expect(proc.status.signal == "KILL")
 
     await client.close()
@@ -65,7 +86,7 @@ struct SSHClientTests {
 
     let proc = try await client.execute("bash -c 'ulimit -c unlimited; kill -ABRT $$'")
 
-    #expect(proc.status.code == -1)
+    #expect(proc.status.code == nil)
     #expect(proc.status.signal == "ABRT")
     #expect(proc.status.coreDumped == true)
 
@@ -82,6 +103,27 @@ struct SSHClientTests {
     let expected = try String(contentsOfFile: "Tests/Data/lorem-ipsum.txt", encoding: .utf8)
     #expect(actual == expected)
     #expect(proc.status.code == 0)
+
+    await client.close()
+  }
+
+  @Test func testCancellationOfForAwaitLoopOverChannelStream() async throws {
+    let client = try await SSHClient.connect(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+
+    let expected = 1_000_000
+    let actual = try await client.execute(
+      "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout"
+    ) { channel in
+      for try await data: Data in channel.stream(from: .stdout) {
+        // Returning here causes stream to cancel
+        return data
+      }
+      fatalError("Stream should not complete")
+    }
+
+    #expect(actual.count > 0)
+    #expect(actual.count < expected)
 
     await client.close()
   }

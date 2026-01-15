@@ -222,54 +222,31 @@ final actor SSHSession {
     return channel
   }
 
-  func withChannel<T>(
+  func withSessionChannel<T>(
     _id: SSHChannelID = SSHChannelID(),
-    perform body: (SSHChannel) async throws -> T
+    perform body: @Sendable (SSHSessionChannel) async throws -> T
   ) async throws -> T {
-    let channel = try createChannel(_id: _id)
-    defer { freeChannel(id: _id) }
+    let channel = try openChannelSession(_id: _id)
+    defer { closeChannel(id: _id) }
     return try await body(channel)
   }
 
-  func createChannel(_id: SSHChannelID = SSHChannelID()) throws -> SSHChannel {
+  func openChannelSession(_id: SSHChannelID = SSHChannelID()) throws -> SSHSessionChannel {
     guard let channel = ssh_channel_new(session) else {
       throw SSHError.channelNewFailed
     }
-    channels[_id] = channel
-    return SSHChannel(session: self, id: _id)
-  }
-
-  func freeChannel(id: SSHChannelID) {
-    guard let channel = channels.removeValue(forKey: id) else { return }
-    ssh_channel_free(channel)
-  }
-
-  func withOpenedChannelSession<T>(id: SSHChannelID, perform body: () async throws -> T)
-    async throws -> T
-  {
-    let channel = try channel(id: id)
-    try openChannelSession(channel: channel)
-    defer { closeChannel(channel: channel) }
-    return try await body()
-  }
-
-  private func openChannelSession(channel: ssh_channel) throws {
     guard ssh_channel_open_session(channel) == SSH_OK else {
+      ssh_channel_free(channel)
       throw SSHError.channelOpenSessionFailed(getError())
     }
-  }
-
-  func openChannelSession(id: SSHChannelID) throws {
-    try openChannelSession(channel: channel(id: id))
-  }
-
-  private func closeChannel(channel: ssh_channel) {
-    _ = ssh_channel_close(channel)
+    channels[_id] = channel
+    return SSHSessionChannel(session: self, id: _id)
   }
 
   func closeChannel(id: SSHChannelID) {
-    guard let channel = channels[id] else { return }
-    closeChannel(channel: channel)
+    guard let channel = channels.removeValue(forKey: id) else { return }
+    _ = ssh_channel_close(channel)
+    ssh_channel_free(channel)
   }
 
   func execute(onChannel id: SSHChannelID, command: String) throws {
@@ -279,7 +256,7 @@ final actor SSHSession {
     }
   }
 
-  func getExitState(onChannel id: SSHChannelID) throws -> SSHExitStatus {
+  func exitState(onChannel id: SSHChannelID) throws -> SSHExitStatus {
     let channel = try channel(id: id)
 
     var code: Int32 = 0
