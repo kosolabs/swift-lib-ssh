@@ -1,0 +1,24 @@
+# Changelog
+
+## 1.0.0 (2026-01-15)
+
+
+### Features
+
+* add exit code and stderr support to execute ([#42](https://github.com/kosolabs/swift-lib-ssh/issues/42)) ([570b9a6](https://github.com/kosolabs/swift-lib-ssh/commit/570b9a6f6c3c49b16bc6bd4a0b80469d7230919e))
+* add progress callback to upload ([#32](https://github.com/kosolabs/swift-lib-ssh/issues/32)) ([7dd6581](https://github.com/kosolabs/swift-lib-ssh/commit/7dd6581e6f4f43f8b7f9ea1dcba331d4c1d50157))
+* add support for streaming writes ([#39](https://github.com/kosolabs/swift-lib-ssh/issues/39)) ([774b1ea](https://github.com/kosolabs/swift-lib-ssh/commit/774b1ea4f16e1bbd931c013d1eea1ea11a197396))
+* enable release please ([#44](https://github.com/kosolabs/swift-lib-ssh/issues/44)) ([947e554](https://github.com/kosolabs/swift-lib-ssh/commit/947e55435dbbfedbe47c0e9bc3cea673b06c67ca))
+* implement read offset and read length ([#33](https://github.com/kosolabs/swift-lib-ssh/issues/33)) ([172aa48](https://github.com/kosolabs/swift-lib-ssh/commit/172aa48b228f2b62266699c23d99544bd82be9a2))
+* initial implementation of upload ([#30](https://github.com/kosolabs/swift-lib-ssh/issues/30)) ([1d14a45](https://github.com/kosolabs/swift-lib-ssh/commit/1d14a45770ad0647726e69530844fd216c9666d8))
+
+
+### Bug Fixes
+
+* add [@shadanan](https://github.com/shadanan) as codeowner ([#37](https://github.com/kosolabs/swift-lib-ssh/issues/37)) ([f6f5c35](https://github.com/kosolabs/swift-lib-ssh/commit/f6f5c352e001721a7ab81c791b7f365bde28c057))
+* allow renovate to manage pinned version ([#38](https://github.com/kosolabs/swift-lib-ssh/issues/38)) ([0e418e8](https://github.com/kosolabs/swift-lib-ssh/commit/0e418e8b3b14815ada46132f2844d43238e854fa))
+* avoid second allocation of Data ([#31](https://github.com/kosolabs/swift-lib-ssh/issues/31)) ([0bc62b7](https://github.com/kosolabs/swift-lib-ssh/commit/0bc62b736b44d7341761d5326547e3a1529b9a78))
+* remove dead code ([#29](https://github.com/kosolabs/swift-lib-ssh/issues/29)) ([2e95ba9](https://github.com/kosolabs/swift-lib-ssh/commit/2e95ba91aebf55196511ee0ce3e51e1a606da449))
+* remove untested code ([#41](https://github.com/kosolabs/swift-lib-ssh/issues/41)) ([cff193a](https://github.com/kosolabs/swift-lib-ssh/commit/cff193a95b73c889d8280855e3c976204f5a0a91))
+* simplify channel session management ([#43](https://github.com/kosolabs/swift-lib-ssh/issues/43)) ([2ca78a3](https://github.com/kosolabs/swift-lib-ssh/commit/2ca78a38f6872fc994db57f0a1775bca00a9fb30))
+* tidy up naming ([#40](https://github.com/kosolabs/swift-lib-ssh/issues/40)) ([78b680b](https://github.com/kosolabs/swift-lib-ssh/commit/78b680b7d41f1f2725260f8f18636e82c2d9d53f))
