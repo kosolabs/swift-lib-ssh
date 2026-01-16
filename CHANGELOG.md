@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.0.1...v1.0.2) (2026-01-16)
+
+
+### Bug Fixes
+
+* use environment and drop tagging code ([#48](https://github.com/kosolabs/swift-lib-ssh/issues/48)) ([4146b88](https://github.com/kosolabs/swift-lib-ssh/commit/4146b887c5433e0d61cc6e4d22ba83a4382e2bf8))
+
 ## [1.0.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.0.0...v1.0.1) (2026-01-16)
 
 
