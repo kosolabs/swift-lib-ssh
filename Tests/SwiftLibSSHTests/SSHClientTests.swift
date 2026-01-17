@@ -130,7 +130,8 @@ struct SSHClientTests {
 
   @Test func testPrivateKeyAuthentication() async throws {
     let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", privateKeyPath: "Tests/Data/id_ed25519"
+      host: "localhost", port: 2222, user: "myuser",
+      privateKeyURL: URL(fileURLWithPath: "Tests/Data/id_ed25519")
     )
 
     let proc = try await client.execute("whoami")

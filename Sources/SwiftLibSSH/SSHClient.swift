@@ -24,42 +24,80 @@ public struct SSHClient: Sendable {
     try await session.connect()
   }
 
-  private func authenticate(user: String, password: String) async throws {
+  private func authenticate(
+    user: String, password: String
+  ) async throws {
     try await session.authenticate(user: user, password: password)
   }
 
-  public static func connect(host: String, port: UInt32 = 22, user: String, password: String)
-    async throws
-    -> SSHClient
-  {
-    let client = try await SSHClient(host: host, port: port)
-    try await client.connect()
-    try await client.authenticate(user: user, password: password)
-    return client
-  }
-
-  private func authenticate(user: String, privateKeyPath: String, passphrase: String? = nil)
-    async throws
-  {
-    guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-      throw SSHClientError.authenticationFailed("Private key file not found: \(privateKeyPath)")
+  private func authenticate(
+    user: String, privateKeyURL: URL, passphrase: String? = nil
+  ) async throws {
+    guard FileManager.default.fileExists(atPath: privateKeyURL.path) else {
+      throw SSHClientError.authenticationFailed("Private key file not found: \(privateKeyURL)")
     }
-    try await session.withImportedPrivateKey(from: privateKeyPath, passphrase: passphrase) {
+    try await session.withImportedPrivateKey(from: privateKeyURL, passphrase: passphrase) {
       privateKey in
       try await privateKey.authenticate(user: user)
     }
   }
 
   public static func connect(
-    host: String, port: UInt32 = 22, user: String, privateKeyPath: String, passphrase: String? = nil
+    host: String, port: UInt32 = 22, user: String, password: String
+  ) async throws -> SSHClient {
+    let client = try await SSHClient(host: host, port: port)
+    try await client.connect()
+    try await client.authenticate(user: user, password: password)
+    return client
+  }
+
+  public static func connect(
+    host: String, port: UInt32 = 22, user: String, privateKeyURL: URL, passphrase: String? = nil
   ) async throws
     -> SSHClient
   {
     let client = try await SSHClient(host: host, port: port)
     try await client.connect()
     try await client.authenticate(
-      user: user, privateKeyPath: privateKeyPath, passphrase: passphrase)
+      user: user, privateKeyURL: privateKeyURL, passphrase: passphrase)
     return client
+  }
+
+  @discardableResult
+  public static func with<T: Sendable>(
+    host: String, port: UInt32 = 22, user: String, password: String,
+    perform body: @Sendable (SSHClient) async throws -> T
+  ) async throws -> T {
+    let client = try await connect(
+      host: host, port: port, user: user, password: password
+    )
+    do {
+      let result = try await body(client)
+      await client.close()
+      return result
+    } catch {
+      await client.close()
+      throw error
+    }
+  }
+
+  @discardableResult
+  public static func with<T: Sendable>(
+    host: String, port: UInt32 = 22, user: String,
+    privateKeyURL: URL, passphrase: String? = nil,
+    perform body: @Sendable (SSHClient) async throws -> T
+  ) async throws -> T {
+    let client = try await connect(
+      host: host, port: port, user: user, privateKeyURL: privateKeyURL, passphrase: passphrase
+    )
+    do {
+      let result = try await body(client)
+      await client.close()
+      return result
+    } catch {
+      await client.close()
+      throw error
+    }
   }
 
   public var isConnected: Bool {

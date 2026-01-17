@@ -177,19 +177,19 @@ final actor SSHSession {
   // MARK: - Key Operations
 
   func withImportedPrivateKey<T>(
-    _id: SSHKeyID = SSHKeyID(), from path: String, passphrase: String? = nil,
+    _id: SSHKeyID = SSHKeyID(), from file: URL, passphrase: String? = nil,
     perform body: (SSHKey) async throws -> T
   ) async throws -> T {
-    let key = try importPrivateKey(_id: _id, from: path, passphrase: passphrase)
+    let key = try importPrivateKey(_id: _id, from: file, passphrase: passphrase)
     defer { freeKey(id: _id) }
     return try await body(key)
   }
 
   func importPrivateKey(
-    _id: SSHKeyID = SSHKeyID(), from path: String, passphrase: String? = nil
+    _id: SSHKeyID = SSHKeyID(), from file: URL, passphrase: String? = nil
   ) throws -> SSHKey {
     var key: ssh_key?
-    guard ssh_pki_import_privkey_file(path, passphrase, nil, nil, &key) == SSH_OK
+    guard ssh_pki_import_privkey_file(file.path, passphrase, nil, nil, &key) == SSH_OK
     else {
       throw SSHError.pkiImportPrivkeyFile(getError())
     }
