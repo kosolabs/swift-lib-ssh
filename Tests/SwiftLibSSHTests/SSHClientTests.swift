@@ -5,145 +5,144 @@ import Testing
 
 struct SSHClientTests {
   @Test func testExecute() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let proc = try await client.execute("whoami")
-    let actual = try proc.stdout
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+      let proc = try await client.execute("whoami")
+      let actual = try proc.stdout
+        .decoded(as: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    let expected = "myuser"
-    #expect(actual == expected)
-    #expect(proc.status.code == 0)
-
-    await client.close()
+      let expected = "myuser"
+      #expect(actual == expected)
+      #expect(proc.status.code == 0)
+    }
   }
 
   @Test func testExecuteMoreThanOnce() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let expected = "myuser"
+      let expected = "myuser"
 
-    let actual1 = try await client.execute("whoami")
-      .stdout
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-    #expect(actual1 == expected)
+      let actual1 = try await client.execute("whoami")
+        .stdout
+        .decoded(as: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      #expect(actual1 == expected)
 
-    let actual2 = try await client.execute("whoami")
-      .stdout
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-    #expect(actual2 == expected)
-
-    await client.close()
+      let actual2 = try await client.execute("whoami")
+        .stdout
+        .decoded(as: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      #expect(actual2 == expected)
+    }
   }
 
   @Test func testExecuteInvalidCommand() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let proc = try await client.execute("blah")
+      let proc = try await client.execute("blah")
 
-    #expect(proc.status.code == 127)
-
-    await client.close()
+      #expect(proc.status.code == 127)
+    }
   }
 
   @Test func testExecuteWithStderr() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let proc = try await client.execute("echo 'custom error' >&2")
+      let proc = try await client.execute("echo 'custom error' >&2")
 
-    let stderr = try proc.stderr
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+      let stderr = try proc.stderr
+        .decoded(as: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    #expect(stderr == "custom error")
-    #expect(proc.status.code == 0)
-
-    await client.close()
+      #expect(stderr == "custom error")
+      #expect(proc.status.code == 0)
+    }
   }
 
   @Test func testExecuteWithSignal() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let proc = try await client.execute("kill -9 $$")
+      let proc = try await client.execute("kill -9 $$")
 
-    #expect(proc.status.code == nil)
-    #expect(proc.status.signal == "KILL")
-
-    await client.close()
+      #expect(proc.status.code == nil)
+      #expect(proc.status.signal == "KILL")
+    }
   }
 
   @Test func testExecuteWithCoreDump() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let proc = try await client.execute("bash -c 'ulimit -c unlimited; kill -ABRT $$'")
+      let proc = try await client.execute("bash -c 'ulimit -c unlimited; kill -ABRT $$'")
 
-    #expect(proc.status.code == nil)
-    #expect(proc.status.signal == "ABRT")
-    #expect(proc.status.coreDumped == true)
-
-    await client.close()
+      #expect(proc.status.code == nil)
+      #expect(proc.status.signal == "ABRT")
+      #expect(proc.status.coreDumped == true)
+    }
   }
 
   @Test func testExecuteWithLargerOutput() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let proc = try await client.execute("cat lorem-ipsum.txt")
-    let actual = try proc.stdout.decoded(as: .utf8)
+      let proc = try await client.execute("cat lorem-ipsum.txt")
+      let actual = try proc.stdout.decoded(as: .utf8)
 
-    let expected = try String(contentsOfFile: "Tests/Data/lorem-ipsum.txt", encoding: .utf8)
-    #expect(actual == expected)
-    #expect(proc.status.code == 0)
-
-    await client.close()
+      let expected = try String(contentsOfFile: "Tests/Data/lorem-ipsum.txt", encoding: .utf8)
+      #expect(actual == expected)
+      #expect(proc.status.code == 0)
+    }
   }
 
   @Test func testCancellationOfForAwaitLoopOverChannelStream() async throws {
-    let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+    try await SSHClient.withAuthenticatedClient(
+      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+    ) { client in
 
-    let expected = 1_000_000
-    let actual = try await client.execute(
-      "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout"
-    ) { channel in
-      for try await data: Data in channel.stream(from: .stdout) {
-        // Returning here causes stream to cancel
-        return data
+      let expected = 1_000_000
+      let actual = try await client.execute(
+        "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout"
+      ) { channel in
+        for try await data: Data in channel.stream(from: .stdout) {
+          // Returning here causes stream to cancel
+          return data
+        }
+        fatalError("Stream should not complete")
       }
-      fatalError("Stream should not complete")
+
+      #expect(actual.count > 0)
+      #expect(actual.count < expected)
     }
-
-    #expect(actual.count > 0)
-    #expect(actual.count < expected)
-
-    await client.close()
   }
 
   @Test func testPrivateKeyAuthentication() async throws {
-    let client = try await SSHClient.connect(
+    try await SSHClient.withAuthenticatedClient(
       host: "localhost", port: 2222, user: "myuser",
       privateKeyURL: URL(fileURLWithPath: "Tests/Data/id_ed25519")
-    )
+    ) { client in
 
-    let proc = try await client.execute("whoami")
-    let actual = try proc.stdout
-      .decoded(as: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+      let proc = try await client.execute("whoami")
+      let actual = try proc.stdout
+        .decoded(as: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    let expected = "myuser"
-    #expect(actual == expected)
-    #expect(proc.status.code == 0)
-
-    await client.close()
+      let expected = "myuser"
+      #expect(actual == expected)
+      #expect(proc.status.code == 0)
+    }
   }
 
   @Test func testConnectedStatus() async throws {

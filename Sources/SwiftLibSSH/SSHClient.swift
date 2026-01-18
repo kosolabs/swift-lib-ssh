@@ -64,7 +64,7 @@ public struct SSHClient: Sendable {
   }
 
   @discardableResult
-  public static func with<T: Sendable>(
+  public static func withAuthenticatedClient<T: Sendable>(
     host: String, port: UInt32 = 22, user: String, password: String,
     perform body: @Sendable (SSHClient) async throws -> T
   ) async throws -> T {
@@ -82,7 +82,7 @@ public struct SSHClient: Sendable {
   }
 
   @discardableResult
-  public static func with<T: Sendable>(
+  public static func withAuthenticatedClient<T: Sendable>(
     host: String, port: UInt32 = 22, user: String,
     privateKeyURL: URL, passphrase: String? = nil,
     perform body: @Sendable (SSHClient) async throws -> T
