@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.1.0...v1.1.1) (2026-01-18)
+
+
+### Bug Fixes
+
+* update tests to use scoped resource ([#51](https://github.com/kosolabs/swift-lib-ssh/issues/51)) ([ad3a8d3](https://github.com/kosolabs/swift-lib-ssh/commit/ad3a8d3a5bbf4aedad47d2d6823b8717a21ca858))
+
 ## [1.1.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.0.1...v1.1.0) (2026-01-17)
 
 
