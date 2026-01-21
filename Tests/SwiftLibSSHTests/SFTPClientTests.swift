@@ -13,7 +13,7 @@ func metrics(size: UInt64, duration: Duration) -> String {
 struct SFTPClientTests {
   @Test func testStatAndSetPermissions() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       // Prepare a temp file
@@ -32,7 +32,7 @@ struct SFTPClientTests {
 
   @Test func testCreateDirectory() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let path = "/tmp/test-create-directory"
@@ -52,7 +52,7 @@ struct SFTPClientTests {
 
   @Test func testRemoveDirectory() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let path = "/tmp/test-remove-directory"
@@ -72,7 +72,7 @@ struct SFTPClientTests {
 
   @Test func testLimits() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       try await ssh.withSftp(perform: { sftp in
@@ -87,7 +87,7 @@ struct SFTPClientTests {
 
   @Test func testDownload() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcPath = "/tmp/dl-test.dat"
@@ -121,7 +121,7 @@ struct SFTPClientTests {
 
   @Test func testUpload() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcURL = FileManager

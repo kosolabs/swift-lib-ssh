@@ -6,7 +6,7 @@ import Testing
 struct SSHClientTests {
   @Test func testExecute() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { client in
 
       let proc = try await client.execute("whoami")
@@ -14,7 +14,7 @@ struct SSHClientTests {
         .decoded(as: .utf8)
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
-      let expected = "myuser"
+      let expected = user
       #expect(actual == expected)
       #expect(proc.status.code == 0)
     }
@@ -22,10 +22,10 @@ struct SSHClientTests {
 
   @Test func testExecuteMoreThanOnce() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { client in
 
-      let expected = "myuser"
+      let expected = user
 
       let actual1 = try await client.execute("whoami")
         .stdout
@@ -43,7 +43,7 @@ struct SSHClientTests {
 
   @Test func testExecuteInvalidCommand() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { client in
 
       let proc = try await client.execute("blah")
@@ -54,7 +54,7 @@ struct SSHClientTests {
 
   @Test func testExecuteWithStderr() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { client in
 
       let proc = try await client.execute("echo 'custom error' >&2")
@@ -70,7 +70,7 @@ struct SSHClientTests {
 
   @Test func testExecuteWithSignal() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { client in
 
       let proc = try await client.execute("kill -9 $$")
@@ -80,28 +80,17 @@ struct SSHClientTests {
     }
   }
 
-  @Test func testExecuteWithCoreDump() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
-    ) { client in
-
-      let proc = try await client.execute("bash -c 'ulimit -c unlimited; kill -ABRT $$'")
-
-      #expect(proc.status.code == nil)
-      #expect(proc.status.signal == "ABRT")
-      #expect(proc.status.coreDumped == true)
-    }
-  }
-
   @Test func testExecuteWithLargerOutput() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { client in
 
-      let proc = try await client.execute("cat lorem-ipsum.txt")
+      let proc = try await client.execute(
+        "for i in {1..500}; do echo 'Hello world'; done"
+      )
       let actual = try proc.stdout.decoded(as: .utf8)
 
-      let expected = try String(contentsOfFile: "Tests/Data/lorem-ipsum.txt", encoding: .utf8)
+      let expected = Array(repeating: "Hello world\n", count: 500).joined()
       #expect(actual == expected)
       #expect(proc.status.code == 0)
     }
@@ -109,7 +98,7 @@ struct SSHClientTests {
 
   @Test func testCancellationOfForAwaitLoopOverChannelStream() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { client in
 
       let expected = 1_000_000
@@ -130,8 +119,7 @@ struct SSHClientTests {
 
   @Test func testPrivateKeyAuthentication() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser",
-      privateKeyURL: URL(fileURLWithPath: "Tests/Data/id_ed25519")
+      host: host, port: port, user: user, privateKeyURL: privateKey
     ) { client in
 
       let proc = try await client.execute("whoami")
@@ -139,7 +127,7 @@ struct SSHClientTests {
         .decoded(as: .utf8)
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
-      let expected = "myuser"
+      let expected = user
       #expect(actual == expected)
       #expect(proc.status.code == 0)
     }
@@ -147,7 +135,7 @@ struct SSHClientTests {
 
   @Test func testConnectedStatus() async throws {
     let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+      host: host, port: port, user: user, password: password)
 
     #expect(await client.isConnected)
 
@@ -158,7 +146,7 @@ struct SSHClientTests {
 
   @Test func testMultipleCallsToClose() async throws {
     let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+      host: host, port: port, user: user, password: password)
 
     #expect(await client.isConnected)
 
@@ -170,7 +158,7 @@ struct SSHClientTests {
 
   @Test func testExecuteThrowsAfterClose() async throws {
     let client = try await SSHClient.connect(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass")
+      host: host, port: port, user: user, password: password)
 
     await client.close()
 

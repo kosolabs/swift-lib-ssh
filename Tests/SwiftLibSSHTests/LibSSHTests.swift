@@ -3,12 +3,40 @@ import Testing
 
 @testable import SwiftLibSSH
 
+var host: String {
+  let env = ProcessInfo.processInfo.environment
+  return env["SWIFT_LIBSSH_TEST_HOST"] ?? "localhost"
+}
+
+var port: UInt32 {
+  let env = ProcessInfo.processInfo.environment
+  if let portString = env["SWIFT_LIBSSH_TEST_PORT"], let port = UInt32(portString) {
+    return port
+  }
+  return 2222
+}
+
+var user: String {
+  let env = ProcessInfo.processInfo.environment
+  return env["SWIFT_LIBSSH_TEST_USER"] ?? "myuser"
+}
+
+var password: String {
+  let env = ProcessInfo.processInfo.environment
+  return env["SWIFT_LIBSSH_TEST_PASSWORD"] ?? "mypass"
+}
+
+var privateKey: URL {
+  let env = ProcessInfo.processInfo.environment
+  return URL(fileURLWithPath: env["SWIFT_LIBSSH_TEST_PRIVATE_KEY_PATH"] ?? "Tests/Data/id_ed25519")
+}
+
 func connect() async throws -> SSHSession {
   let session = try SSHSession()
-  try await session.setHost("localhost")
-  try await session.setPort(2222)
+  try await session.setHost(host)
+  try await session.setPort(port)
   try await session.connect()
-  try await session.authenticate(user: "myuser", password: "mypass")
+  try await session.authenticate(user: user, password: password)
   #expect(await session.isConnected)
   return session
 }
