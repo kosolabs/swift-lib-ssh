@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
   name: "SwiftLibSSH",
   platforms: [
-    .macOS(.v15)
+    .macOS(.v26)
   ],
   products: [
     .library(
@@ -12,15 +12,21 @@ let package = Package(
       targets: ["SwiftLibSSH"]
     )
   ],
-  dependencies: [
-    .package(url: "https://github.com/apple/swift-crypto.git", from: "4.2.0")
-  ],
   targets: [
-    .systemLibrary(
+    .target(
       name: "CLibSSH",
-      pkgConfig: "libssh",
-      providers: [
-        .brew(["libssh"])
+      path: "Sources/CLibSSH",
+      publicHeadersPath: "include",
+      cSettings: [
+        .headerSearchPath("include")
+      ],
+      linkerSettings: [
+        .unsafeFlags([
+          "-L\(Context.packageDirectory)/Sources/CLibSSH/lib",
+          "-lssh",
+          "-lssl",
+          "-lcrypto",
+        ])
       ]
     ),
     .target(
@@ -29,10 +35,7 @@ let package = Package(
     ),
     .testTarget(
       name: "SwiftLibSSHTests",
-      dependencies: [
-        "SwiftLibSSH",
-        .product(name: "Crypto", package: "swift-crypto"),
-      ],
+      dependencies: ["SwiftLibSSH"],
     ),
   ]
 )

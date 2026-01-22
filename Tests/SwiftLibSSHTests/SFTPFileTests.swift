@@ -1,4 +1,4 @@
-import Crypto
+import CryptoKit
 import Foundation
 import Synchronization
 import Testing
@@ -62,7 +62,7 @@ extension SSHClient {
 struct SFTPFileTests {
   @Test func testReadSmall() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcPath = "/tmp/read-small-test.dat"
@@ -82,7 +82,7 @@ struct SFTPFileTests {
 
   @Test func testReadSome() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcPath = "/tmp/read-some-test.dat"
@@ -104,7 +104,7 @@ struct SFTPFileTests {
 
   @Test func testReadBig() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcPath = "/tmp/read-big-test.dat"
@@ -124,7 +124,7 @@ struct SFTPFileTests {
 
   @Test func testStreamSmall() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcPath = "/tmp/stream-small-test.dat"
@@ -148,7 +148,7 @@ struct SFTPFileTests {
 
   @Test func testStreamSome() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcPath = "/tmp/stream-some-test.dat"
@@ -174,7 +174,7 @@ struct SFTPFileTests {
 
   @Test func testStreamBig() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let srcPath = "/tmp/stream-big-test.dat"
@@ -198,7 +198,7 @@ struct SFTPFileTests {
 
   @Test func testCancellationOfForAwaitLoopOverSftpStream() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       try await ssh.execute("dd if=/dev/urandom of=/tmp/drain.dat bs=1M count=1")
@@ -224,7 +224,7 @@ struct SFTPFileTests {
 
   @Test func testWriteSmall() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let destPath = "/tmp/write-small-test.dat"
@@ -247,7 +247,7 @@ struct SFTPFileTests {
 
   @Test func testWriteBig() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: "localhost", port: 2222, user: "myuser", password: "mypass"
+      host: host, port: port, user: user, password: password
     ) { ssh in
 
       let destPath = "/tmp/write-big-test.dat"
