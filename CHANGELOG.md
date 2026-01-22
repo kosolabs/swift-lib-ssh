@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.1.1...v1.2.0) (2026-01-22)
+
+
+### Features
+
+* add statically compiled libssh ([#53](https://github.com/kosolabs/swift-lib-ssh/issues/53)) ([a00785e](https://github.com/kosolabs/swift-lib-ssh/commit/a00785eabdf4e6bef1926ff8ab50bc1b3fa87387))
+
 ## [1.1.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.1.0...v1.1.1) (2026-01-18)
 
 
