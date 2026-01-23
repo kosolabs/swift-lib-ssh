@@ -117,9 +117,27 @@ struct SSHClientTests {
     }
   }
 
-  @Test func testPrivateKeyAuthentication() async throws {
+  @Test func testPrivateKeyFileAuthentication() async throws {
     try await SSHClient.withAuthenticatedClient(
       host: host, port: port, user: user, privateKeyURL: privateKey
+    ) { client in
+
+      let proc = try await client.execute("whoami")
+      let actual = try proc.stdout
+        .decoded(as: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+      let expected = user
+      #expect(actual == expected)
+      #expect(proc.status.code == 0)
+    }
+  }
+
+  @Test func testBase64PrivateKeyAuthentication() async throws {
+    let privateKey = try String(
+      contentsOf: URL(fileURLWithPath: "Tests/Data/id_ed25519"), encoding: .utf8)
+    try await SSHClient.withAuthenticatedClient(
+      host: host, port: port, user: user, base64PrivateKey: privateKey
     ) { client in
 
       let proc = try await client.execute("whoami")
