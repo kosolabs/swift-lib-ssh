@@ -8,9 +8,9 @@ var host: String {
   return env["SWIFT_LIBSSH_TEST_HOST"] ?? "localhost"
 }
 
-var port: UInt32 {
+var port: UInt16 {
   let env = ProcessInfo.processInfo.environment
-  if let portString = env["SWIFT_LIBSSH_TEST_PORT"], let port = UInt32(portString) {
+  if let portString = env["SWIFT_LIBSSH_TEST_PORT"], let port = UInt16(portString) {
     return port
   }
   return 2222
@@ -34,7 +34,7 @@ var privateKey: URL {
 func connect() async throws -> SSHSession {
   let session = try SSHSession()
   try await session.setHost(host)
-  try await session.setPort(port)
+  try await session.setPort(UInt32(port))
   try await session.connect()
   try await session.authenticate(user: user, password: password)
   #expect(await session.isConnected)
