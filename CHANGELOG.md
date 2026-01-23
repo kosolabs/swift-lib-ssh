@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.2.0...v1.3.0) (2026-01-23)
+
+
+### Features
+
+* add support for base64 encoded private key ([#55](https://github.com/kosolabs/swift-lib-ssh/issues/55)) ([08d888d](https://github.com/kosolabs/swift-lib-ssh/commit/08d888dde14d124275e3ac34a89fd91e66ff5bd0))
+
+
+### Bug Fixes
+
+* add check for task cancellation ([#58](https://github.com/kosolabs/swift-lib-ssh/issues/58)) ([d746564](https://github.com/kosolabs/swift-lib-ssh/commit/d746564072403b40926d4d31799c8923d9f5494b))
+* tweak values in flaky partial read of channel test ([#57](https://github.com/kosolabs/swift-lib-ssh/issues/57)) ([3c19adb](https://github.com/kosolabs/swift-lib-ssh/commit/3c19adbee822a338fa3f1cf1def8f32d8d5b6b64))
+
 ## [1.2.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.1.1...v1.2.0) (2026-01-22)
 
 
