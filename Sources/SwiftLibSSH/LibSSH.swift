@@ -198,6 +198,28 @@ final actor SSHSession {
     return SSHKey(session: self, id: _id)
   }
 
+  func withImportedPrivateKey<T>(
+    _id: SSHKeyID = SSHKeyID(), from base64: String, passphrase: String? = nil,
+    perform body: (SSHKey) async throws -> T
+  ) async throws -> T {
+    let key = try importPrivateKey(_id: _id, from: base64, passphrase: passphrase)
+    defer { freeKey(id: _id) }
+    return try await body(key)
+  }
+
+  func importPrivateKey(
+    _id: SSHKeyID = SSHKeyID(), from base64: String, passphrase: String? = nil
+  ) throws -> SSHKey {
+    var key: ssh_key?
+    guard ssh_pki_import_privkey_base64(base64, passphrase, nil, nil, &key) == SSH_OK
+    else {
+      throw SSHError.pkiImportPrivkeyFile(getError())
+    }
+
+    keys[_id] = key!
+    return SSHKey(session: self, id: _id)
+  }
+
   func authenticateWithPublicKey(id: SSHKeyID, user: String) throws {
     guard let key = keys[id] else {
       throw SSHError.userauthPublickeyFailed("Key not found")

@@ -42,6 +42,15 @@ public struct SSHClient: Sendable {
     }
   }
 
+  private func authenticate(
+    user: String, base64PrivateKey: String, passphrase: String? = nil
+  ) async throws {
+    try await session.withImportedPrivateKey(from: base64PrivateKey, passphrase: passphrase) {
+      base64PrivateKey in
+      try await base64PrivateKey.authenticate(user: user)
+    }
+  }
+
   public static func connect(
     host: String, port: UInt32 = 22, user: String, password: String
   ) async throws -> SSHClient {
@@ -60,6 +69,19 @@ public struct SSHClient: Sendable {
     try await client.connect()
     try await client.authenticate(
       user: user, privateKeyURL: privateKeyURL, passphrase: passphrase)
+    return client
+  }
+
+  public static func connect(
+    host: String, port: UInt32 = 22, user: String,
+    base64PrivateKey: String, passphrase: String? = nil
+  ) async throws
+    -> SSHClient
+  {
+    let client = try await SSHClient(host: host, port: port)
+    try await client.connect()
+    try await client.authenticate(
+      user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase)
     return client
   }
 
@@ -89,6 +111,25 @@ public struct SSHClient: Sendable {
   ) async throws -> T {
     let client = try await connect(
       host: host, port: port, user: user, privateKeyURL: privateKeyURL, passphrase: passphrase
+    )
+    do {
+      let result = try await body(client)
+      await client.close()
+      return result
+    } catch {
+      await client.close()
+      throw error
+    }
+  }
+
+  @discardableResult
+  public static func withAuthenticatedClient<T: Sendable>(
+    host: String, port: UInt32 = 22, user: String,
+    base64PrivateKey: String, passphrase: String? = nil,
+    perform body: @Sendable (SSHClient) async throws -> T
+  ) async throws -> T {
+    let client = try await connect(
+      host: host, port: port, user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase
     )
     do {
       let result = try await body(client)
