@@ -62,7 +62,7 @@ struct LibSSHTests {
         }
         return result
       }
-      try await Task.sleep(nanoseconds: 10_000_000)
+      try await Task.sleep(nanoseconds: 100_000)
       task.cancel()
       return try await task.value
     }
