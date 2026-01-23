@@ -57,7 +57,7 @@ struct LibSSHTests {
         let stream = channel.stream(from: .stdout)
         var result = 0
         let iterator = stream.makeAsyncIterator()
-        while let data = try await iterator.next() {
+        while !Task.isCancelled, let data = try await iterator.next() {
           result += data.count
         }
         return result
