@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.3.0...v1.3.1) (2026-01-23)
+
+
+### Bug Fixes
+
+* restrict port numbers to UInt16 ([#59](https://github.com/kosolabs/swift-lib-ssh/issues/59)) ([93c309d](https://github.com/kosolabs/swift-lib-ssh/commit/93c309d033de8bb982bbe88229213c264a5d77f4))
+
 ## [1.3.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.2.0...v1.3.0) (2026-01-23)
 
 
