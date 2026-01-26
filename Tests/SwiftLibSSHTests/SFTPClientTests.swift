@@ -12,10 +12,7 @@ func metrics(size: UInt64, duration: Duration) -> String {
 
 struct SFTPClientTests {
   @Test func testStatAndSetPermissions() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { ssh in
-
+    try await withAuthenticatedClient { ssh in
       // Prepare a temp file
       try await ssh.execute("rm -f /tmp/sftp-perm.txt && touch /tmp/sftp-perm.txt")
 
@@ -31,10 +28,7 @@ struct SFTPClientTests {
   }
 
   @Test func testCreateDirectory() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { ssh in
-
+    try await withAuthenticatedClient { ssh in
       let path = "/tmp/test-create-directory"
       try await ssh.execute("rmdir \(path)")
 
@@ -51,10 +45,7 @@ struct SFTPClientTests {
   }
 
   @Test func testRemoveDirectory() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { ssh in
-
+    try await withAuthenticatedClient { ssh in
       let path = "/tmp/test-remove-directory"
       try await ssh.execute("mkdir \(path)")
 
@@ -71,10 +62,7 @@ struct SFTPClientTests {
   }
 
   @Test func testLimits() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { ssh in
-
+    try await withAuthenticatedClient { ssh in
       try await ssh.withSftp(perform: { sftp in
         let limits = try await sftp.limits()
         #expect(limits.maxOpenHandles > 0)
@@ -86,10 +74,7 @@ struct SFTPClientTests {
   }
 
   @Test func testDownload() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { ssh in
-
+    try await withAuthenticatedClient { ssh in
       let srcPath = "/tmp/dl-test.dat"
 
       let destURL = FileManager
@@ -120,10 +105,7 @@ struct SFTPClientTests {
   }
 
   @Test func testUpload() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { ssh in
-
+    try await withAuthenticatedClient { ssh in
       let srcURL = FileManager
         .default
         .temporaryDirectory

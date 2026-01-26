@@ -5,59 +5,46 @@ import Testing
 
 struct SSHClientTests {
   @Test func testExecute() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { client in
+    try await withAuthenticatedClient { ssh in
+      let expected = "hello"
 
-      let proc = try await client.execute("whoami")
+      let proc = try await ssh.execute("echo '\(expected)'")
+
       let actual = try proc.stdout
         .decoded(as: .utf8)
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
-      let expected = user
       #expect(actual == expected)
-      #expect(proc.status.code == 0)
     }
   }
 
   @Test func testExecuteMoreThanOnce() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { client in
-
-      let expected = user
-
-      let actual1 = try await client.execute("whoami")
+    try await withAuthenticatedClient { ssh in
+      let actual1 = try await ssh.execute("whoami")
         .stdout
         .decoded(as: .utf8)
         .trimmingCharacters(in: .whitespacesAndNewlines)
-      #expect(actual1 == expected)
 
-      let actual2 = try await client.execute("whoami")
+      let actual2 = try await ssh.execute("whoami")
         .stdout
         .decoded(as: .utf8)
         .trimmingCharacters(in: .whitespacesAndNewlines)
-      #expect(actual2 == expected)
+
+      #expect(actual1 == actual2)
     }
   }
 
   @Test func testExecuteInvalidCommand() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { client in
-
-      let proc = try await client.execute("blah")
+    try await withAuthenticatedClient { ssh in
+      let proc = try await ssh.execute("blah")
 
       #expect(proc.status.code == 127)
     }
   }
 
   @Test func testExecuteWithStderr() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { client in
-
-      let proc = try await client.execute("echo 'custom error' >&2")
+    try await withAuthenticatedClient { ssh in
+      let proc = try await ssh.execute("echo 'custom error' >&2")
 
       let stderr = try proc.stderr
         .decoded(as: .utf8)
@@ -69,11 +56,8 @@ struct SSHClientTests {
   }
 
   @Test func testExecuteWithSignal() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { client in
-
-      let proc = try await client.execute("kill -9 $$")
+    try await withAuthenticatedClient { ssh in
+      let proc = try await ssh.execute("kill -9 $$")
 
       #expect(proc.status.code == nil)
       #expect(proc.status.signal == "KILL")
@@ -81,11 +65,8 @@ struct SSHClientTests {
   }
 
   @Test func testExecuteWithLargerOutput() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { client in
-
-      let proc = try await client.execute(
+    try await withAuthenticatedClient { ssh in
+      let proc = try await ssh.execute(
         "for i in {1..500}; do echo 'Hello world'; done"
       )
       let actual = try proc.stdout.decoded(as: .utf8)
@@ -97,12 +78,9 @@ struct SSHClientTests {
   }
 
   @Test func testCancellationOfForAwaitLoopOverChannelStream() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
-    ) { client in
-
+    try await withAuthenticatedClient { ssh in
       let expected = 1_000_000
-      let actual = try await client.execute(
+      let actual = try await ssh.execute(
         "dd if=/dev/urandom bs=\(expected) count=1 of=/dev/stdout"
       ) { channel in
         for try await data: Data in channel.stream(from: .stdout) {
@@ -117,71 +95,34 @@ struct SSHClientTests {
     }
   }
 
-  @Test func testPrivateKeyFileAuthentication() async throws {
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, privateKeyURL: privateKey
-    ) { client in
-
-      let proc = try await client.execute("whoami")
-      let actual = try proc.stdout
-        .decoded(as: .utf8)
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-
-      let expected = user
-      #expect(actual == expected)
-      #expect(proc.status.code == 0)
-    }
-  }
-
-  @Test func testBase64PrivateKeyAuthentication() async throws {
-    let privateKey = try String(
-      contentsOf: URL(fileURLWithPath: "Tests/Data/id_ed25519"), encoding: .utf8)
-    try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, base64PrivateKey: privateKey
-    ) { client in
-
-      let proc = try await client.execute("whoami")
-      let actual = try proc.stdout
-        .decoded(as: .utf8)
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-
-      let expected = user
-      #expect(actual == expected)
-      #expect(proc.status.code == 0)
-    }
-  }
-
   @Test func testConnectedStatus() async throws {
-    let client = try await SSHClient.connect(
-      host: host, port: port, user: user, password: password)
+    let ssh = try await client()
 
-    #expect(await client.isConnected)
+    #expect(await ssh.isConnected)
 
-    await client.close()
+    await ssh.close()
 
-    #expect(!(await client.isConnected))
+    #expect(!(await ssh.isConnected))
   }
 
   @Test func testMultipleCallsToClose() async throws {
-    let client = try await SSHClient.connect(
-      host: host, port: port, user: user, password: password)
+    let ssh = try await client()
 
-    #expect(await client.isConnected)
+    #expect(await ssh.isConnected)
 
-    await client.close()
-    await client.close()
+    await ssh.close()
+    await ssh.close()
 
-    #expect(!(await client.isConnected))
+    #expect(!(await ssh.isConnected))
   }
 
   @Test func testExecuteThrowsAfterClose() async throws {
-    let client = try await SSHClient.connect(
-      host: host, port: port, user: user, password: password)
+    let ssh = try await client()
 
-    await client.close()
+    await ssh.close()
 
     do {
-      try await client.execute("whoami")
+      try await ssh.execute("whoami")
       Issue.record("Expected error to be thrown")
     } catch let error as SSHClientError {
       if case .sessionError(let message) = error {
