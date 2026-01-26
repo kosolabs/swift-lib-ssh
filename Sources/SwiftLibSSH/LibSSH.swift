@@ -64,7 +64,7 @@ public struct SFTPAioID: Hashable, Sendable {
   }
 }
 
-enum SSHError: Error {
+public enum SSHError: Error {
   case newFailed
   case optionsSetFailed(String)
   case userauthAgentFailed(String)

@@ -25,25 +25,25 @@ public struct SFTPAttributes: Sendable {
     }
   }
 
-  let name: String?
-  let longname: String?
-  let flags: UInt32
-  let type: Type
-  let size: UInt64
-  let uid: UInt32
-  let gid: UInt32
-  let owner: String?
-  let group: String?
-  let permissions: UInt32
-  let atime64: UInt64
-  let atime: UInt32
-  let atime_nseconds: UInt32
-  let createtime: UInt64
-  let createtime_nseconds: UInt32
-  let mtime64: UInt64
-  let mtime: UInt32
-  let mtime_nseconds: UInt32
-  let extended_count: UInt32
+  public let name: String?
+  public let longname: String?
+  public let flags: UInt32
+  public let type: Type
+  public let size: UInt64
+  public let uid: UInt32
+  public let gid: UInt32
+  public let owner: String?
+  public let group: String?
+  public let permissions: UInt32
+  public let atime64: UInt64
+  public let atime: UInt32
+  public let atime_nseconds: UInt32
+  public let createtime: UInt64
+  public let createtime_nseconds: UInt32
+  public let mtime64: UInt64
+  public let mtime: UInt32
+  public let mtime_nseconds: UInt32
+  public let extended_count: UInt32
 
   private static func string(from cString: UnsafePointer<CChar>?) -> String? {
     guard let cString else { return nil }
