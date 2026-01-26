@@ -84,8 +84,7 @@ struct SSHAuthTests {
   }
 
   @Test func testBase64PrivateKeyAuthentication() async throws {
-    let privateKey = try String(
-      contentsOf: URL(fileURLWithPath: "Tests/Data/id_ed25519"), encoding: .utf8)
+    let privateKey = try String(contentsOf: privateKey, encoding: .utf8)
     try await SSHClient.withAuthenticatedClient(
       host: host, port: port, user: user, base64PrivateKey: privateKey
     ) { ssh in
