@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.3.1...v1.3.2) (2026-01-26)
+
+
+### Bug Fixes
+
+* make sftp attributes public ([#61](https://github.com/kosolabs/swift-lib-ssh/issues/61)) ([147fa39](https://github.com/kosolabs/swift-lib-ssh/commit/147fa390a6276abfb0ebf2ee83a53cba121d67a7))
+
 ## [1.3.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.3.0...v1.3.1) (2026-01-23)
 
 
