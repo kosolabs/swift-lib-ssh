@@ -55,6 +55,10 @@ public struct SFTPFileID: Hashable, Sendable {
   let uuid = UUID()
 }
 
+public struct SFTPDirectoryID: Hashable, Sendable {
+  let uuid = UUID()
+}
+
 public struct SFTPAioID: Hashable, Sendable {
   let fileId: SFTPFileID
   let uuid = UUID()
@@ -97,6 +101,8 @@ public enum SSHError: Error {
   case sftpAioBeginReadFailed(String)
   case sftpAioWaitReadFailed(String)
   case sftpAioBeginWriteFailed(String)
+  case sftpDirectoryNotFound
+  case sftpOpenDirectoryFailed(String)
 }
 
 final actor SSHSession {
@@ -112,6 +118,7 @@ final actor SSHSession {
     var aios: [SFTPAioID: UnsafeMutablePointer<sftp_aio?>] = [:]
   }
   private var files: [SFTPFileID: TrackedFile] = [:]
+  private var directories: [SFTPDirectoryID: sftp_dir] = [:]
 
   init() throws {
     guard let session: ssh_session = ssh_new() else {
@@ -462,6 +469,54 @@ final actor SSHSession {
     }
 
     return bytesWritten
+  }
+
+  // MARK: - SFTP Directory
+
+  func directory(id: SFTPDirectoryID) throws -> sftp_dir {
+    guard let dir = directories[id] else {
+      throw SSHError.sftpDirectoryNotFound
+    }
+    return dir
+  }
+
+  func openDirectory(
+    _id: SFTPDirectoryID,
+    id: SFTPClientID, path: String
+  ) throws -> SFTPDirectory {
+    let sftp = try sftp(id: id)
+    guard let dir = sftp_opendir(sftp, path) else {
+      throw SSHError.sftpOpenDirectoryFailed(getError())
+    }
+    directories[_id] = dir
+    return SFTPDirectory(session: self, sftpId: id, directoryId: _id)
+  }
+
+  func withDirectory<T: Sendable>(
+    id: SFTPClientID, path: String,
+    perform: @Sendable (SFTPDirectory) async throws -> T
+  ) async throws -> T {
+    let _id = SFTPDirectoryID()
+    let dir = try openDirectory(_id: _id, id: id, path: path)
+    defer { closeDirectory(id: _id) }
+    return try await perform(dir)
+  }
+
+  func closeDirectory(id: SFTPDirectoryID) {
+    guard let dir = directories.removeValue(forKey: id) else { return }
+    sftp_closedir(dir)
+  }
+
+  func readDirectory(
+    sftpId: SFTPClientID, directoryId: SFTPDirectoryID
+  ) throws -> SFTPAttributes? {
+    let sftp = try sftp(id: sftpId)
+    let dir = try directory(id: directoryId)
+    guard let attributes = sftp_readdir(sftp, dir) else {
+      return nil
+    }
+    defer { sftp_attributes_free(attributes) }
+    return SFTPAttributes.from(raw: attributes.pointee)
   }
 
   // MARK: - AIO
