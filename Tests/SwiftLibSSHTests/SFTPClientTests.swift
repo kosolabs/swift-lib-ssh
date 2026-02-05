@@ -61,6 +61,29 @@ struct SFTPClientTests {
     }
   }
 
+  @Test func testIterateDirectory() async throws {
+    try await withAuthenticatedClient { ssh in
+      let dirPath = "/tmp/test-iterate-directory"
+      try await ssh.execute("rm -rf \(dirPath) && mkdir \(dirPath)")
+
+      try await ssh.execute("touch \(dirPath)/file{1..3}.txt")
+
+      try await ssh.withSftp(perform: { sftp in
+        let names = try await sftp.withDirectory(atPath: dirPath) { directory in
+          var names = Set<String>()
+          for try await attrs in directory {
+            if let name = attrs.name {
+              names.insert(name)
+            }
+          }
+          return names
+        }
+
+        #expect(names == Set(["file1.txt", "file2.txt", "file3.txt"]))
+      })
+    }
+  }
+
   @Test func testLimits() async throws {
     try await withAuthenticatedClient { ssh in
       try await ssh.withSftp(perform: { sftp in

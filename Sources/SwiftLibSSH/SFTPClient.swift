@@ -21,6 +21,12 @@ public struct SFTPClient: Sendable {
     try await session.rmdir(id: id, atPath: path)
   }
 
+  public func withDirectory<T: Sendable>(
+    atPath path: String, perform: @Sendable (SFTPDirectory) async throws -> T
+  ) async throws -> T {
+    try await session.withDirectory(id: id, path: path, perform: perform)
+  }
+
   public func attributes(atPath path: String) async throws -> SFTPAttributes {
     try await session.stat(id: id, path: path)
   }
