@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.3.2...v1.4.0) (2026-02-05)
+
+
+### Features
+
+* add ability to read contents of a directory ([#66](https://github.com/kosolabs/swift-lib-ssh/issues/66)) ([e664141](https://github.com/kosolabs/swift-lib-ssh/commit/e664141702642bbf0d1f9e604c42a2239a77cb25))
+
 ## [1.3.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.3.1...v1.3.2) (2026-01-26)
 
 
