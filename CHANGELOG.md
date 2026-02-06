@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.4.0...v1.4.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* reorganize code a little ([#68](https://github.com/kosolabs/swift-lib-ssh/issues/68)) ([4eafc48](https://github.com/kosolabs/swift-lib-ssh/commit/4eafc483804e05f94ce1f5c2772a66002a46f6c8))
+
 ## [1.4.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.3.2...v1.4.0) (2026-02-05)
 
 
