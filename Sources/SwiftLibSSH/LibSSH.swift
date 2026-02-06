@@ -480,6 +480,16 @@ final actor SSHSession {
     return dir
   }
 
+  func withDirectory<T: Sendable>(
+    id: SFTPClientID, path: String,
+    perform: @Sendable (SFTPDirectory) async throws -> T
+  ) async throws -> T {
+    let _id = SFTPDirectoryID()
+    let dir = try openDirectory(_id: _id, id: id, path: path)
+    defer { closeDirectory(id: _id) }
+    return try await perform(dir)
+  }
+
   func openDirectory(
     _id: SFTPDirectoryID,
     id: SFTPClientID, path: String
@@ -490,16 +500,6 @@ final actor SSHSession {
     }
     directories[_id] = dir
     return SFTPDirectory(session: self, sftpId: id, directoryId: _id)
-  }
-
-  func withDirectory<T: Sendable>(
-    id: SFTPClientID, path: String,
-    perform: @Sendable (SFTPDirectory) async throws -> T
-  ) async throws -> T {
-    let _id = SFTPDirectoryID()
-    let dir = try openDirectory(_id: _id, id: id, path: path)
-    defer { closeDirectory(id: _id) }
-    return try await perform(dir)
   }
 
   func closeDirectory(id: SFTPDirectoryID) {
