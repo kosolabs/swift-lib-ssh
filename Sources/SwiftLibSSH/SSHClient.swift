@@ -24,9 +24,11 @@ public struct SSHClient: Sendable {
     try await session.connect()
   }
 
-  private func authenticate(
-    user: String, password: String
-  ) async throws {
+  private func authenticate(user: String) async throws {
+    try await session.authenticate(user: user)
+  }
+
+  private func authenticate(user: String, password: String) async throws {
     try await session.authenticate(user: user, password: password)
   }
 
@@ -49,6 +51,15 @@ public struct SSHClient: Sendable {
       base64PrivateKey in
       try await base64PrivateKey.authenticate(user: user)
     }
+  }
+
+  public static func connect(
+    host: String, port: UInt16 = 22, user: String
+  ) async throws -> SSHClient {
+    let client = try await SSHClient(host: host, port: port)
+    try await client.connect()
+    try await client.authenticate(user: user)
+    return client
   }
 
   public static func connect(
@@ -83,6 +94,24 @@ public struct SSHClient: Sendable {
     try await client.authenticate(
       user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase)
     return client
+  }
+
+  @discardableResult
+  public static func withAuthenticatedClient<T: Sendable>(
+    host: String, port: UInt16 = 22, user: String,
+    perform body: @Sendable (SSHClient) async throws -> T
+  ) async throws -> T {
+    let client = try await connect(
+      host: host, port: port, user: user
+    )
+    do {
+      let result = try await body(client)
+      await client.close()
+      return result
+    } catch {
+      await client.close()
+      throw error
+    }
   }
 
   @discardableResult

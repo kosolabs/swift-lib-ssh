@@ -72,6 +72,7 @@ public enum SSHError: Error {
   case newFailed
   case optionsSetFailed(String)
   case userauthAgentFailed(String)
+  case userauthNoneFailed(String)
   case userauthPasswordFailed(String)
   case userauthPublickeyFailed(String)
   case pkiImportPrivkeyFile(String)
@@ -164,6 +165,12 @@ final actor SSHSession {
   func userauthAgent(_ user: String) throws {
     guard ssh_userauth_agent(session, user) == SSH_AUTH_SUCCESS.rawValue else {
       throw SSHError.userauthAgentFailed(getError())
+    }
+  }
+
+  func authenticate(user: String) throws {
+    guard ssh_userauth_none(session, user) == SSH_AUTH_SUCCESS.rawValue else {
+      throw SSHError.userauthNoneFailed(getError())
     }
   }
 
