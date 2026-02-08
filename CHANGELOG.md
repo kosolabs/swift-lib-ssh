@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.4.0...v1.5.0) (2026-02-08)
+
+
+### Features
+
+* add support for no auth ([#70](https://github.com/kosolabs/swift-lib-ssh/issues/70)) ([a4e8c3c](https://github.com/kosolabs/swift-lib-ssh/commit/a4e8c3cd1f35f76f36fd60f7dc5bcf620ba62320))
+
+
+### Bug Fixes
+
+* reorganize code a little ([#68](https://github.com/kosolabs/swift-lib-ssh/issues/68)) ([4eafc48](https://github.com/kosolabs/swift-lib-ssh/commit/4eafc483804e05f94ce1f5c2772a66002a46f6c8))
+
 ## [1.4.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.3.2...v1.4.0) (2026-02-05)
 
 
