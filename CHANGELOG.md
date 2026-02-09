@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.5.0...v1.5.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* attr strings should never be nil and access times are dates ([#72](https://github.com/kosolabs/swift-lib-ssh/issues/72)) ([55b7487](https://github.com/kosolabs/swift-lib-ssh/commit/55b748726bd695917aa2e41eb9ebd55d6328127b))
+
 ## [1.5.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.4.0...v1.5.0) (2026-02-08)
 
 
