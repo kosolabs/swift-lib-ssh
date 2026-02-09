@@ -72,9 +72,7 @@ struct SFTPClientTests {
         let names = try await sftp.withDirectory(atPath: dirPath) { directory in
           var names = Set<String>()
           for try await attrs in directory {
-            if let name = attrs.name {
-              names.insert(name)
-            }
+            names.insert(attrs.name)
           }
           return names
         }
