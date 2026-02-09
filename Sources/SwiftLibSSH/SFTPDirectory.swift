@@ -14,16 +14,16 @@ public struct SFTPDirectory: Sendable, AsyncSequence {
   func read() async throws -> SFTPAttributes? {
     while true {
       guard
-        let attributes = try await session.readDirectory(
+        let attrs = try await session.readDirectory(
           sftpId: sftpId, directoryId: directoryId)
       else {
         return nil
       }
 
-      if let name = attributes.name, name == "." || name == ".." {
+      if attrs.name == "" || attrs.name == "." || attrs.name == ".." {
         continue
       }
-      return attributes
+      return attrs
     }
   }
 
