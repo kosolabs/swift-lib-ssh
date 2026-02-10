@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.5.1...v1.6.0) (2026-02-10)
+
+
+### Features
+
+* add fstat support ([#74](https://github.com/kosolabs/swift-lib-ssh/issues/74)) ([b508d5c](https://github.com/kosolabs/swift-lib-ssh/commit/b508d5cfa106cca11c8f65341db8aead69e81162))
+
 ## [1.5.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.5.0...v1.5.1) (2026-02-09)
 
 
