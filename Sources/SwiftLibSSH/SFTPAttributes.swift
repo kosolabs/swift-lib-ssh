@@ -26,6 +26,7 @@ public struct SFTPAttributes: Sendable {
   }
 
   public let name: String
+  // TODO: Decode flags as bools
   public let flags: UInt32
   public let type: Type
   public let size: UInt64

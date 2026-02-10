@@ -104,6 +104,10 @@ public struct SFTPFile: Sendable {
     await session.closeFile(id: id)
   }
 
+  public func attributes() async throws -> SFTPAttributes {
+    try await session.statFile(id: id)
+  }
+
   func seek(offset: UInt64) async throws {
     try await session.seekFile(id: id, offset: offset)
   }
