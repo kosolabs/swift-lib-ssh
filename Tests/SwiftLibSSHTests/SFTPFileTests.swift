@@ -15,8 +15,7 @@ struct SFTPFileTests {
         }
       }
 
-      // TODO: In test environment, this is null
-      // #expect(attrs.name == "stat-test.dat")
+      #expect(attrs.name == nil)
       #expect(attrs.type == .regular)
       #expect(attrs.size == 1024)
     }

@@ -25,15 +25,15 @@ public struct SFTPAttributes: Sendable {
     }
   }
 
-  public let name: String
+  public let name: String?
   // TODO: Decode flags as bools
   public let flags: UInt32
   public let type: Type
   public let size: UInt64
   public let uid: UInt32
   public let gid: UInt32
-  public let owner: String
-  public let group: String
+  public let owner: String?
+  public let group: String?
   public let permissions: UInt32
   public let accessTime: Date
   public let accessTimeNanos: UInt32
@@ -43,9 +43,9 @@ public struct SFTPAttributes: Sendable {
   public let modifyTimeNanos: UInt32
   public let extendedCount: UInt32
 
-  private static func string(from cString: UnsafePointer<CChar>?) -> String {
-    guard let cString else { return "" }
-    return String(cString: cString, encoding: .utf8) ?? ""
+  private static func string(from cString: UnsafePointer<CChar>?) -> String? {
+    guard let cString else { return nil }
+    return String(cString: cString, encoding: .utf8)
   }
 
   static func from(raw: sftp_attributes_struct) -> SFTPAttributes {

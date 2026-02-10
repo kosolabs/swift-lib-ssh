@@ -20,8 +20,7 @@ struct SFTPClientTests {
         try await sftp.attributes(atPath: path)
       }
 
-      // TODO: In test environment, this is null
-      // #expect(attrs.name == "stat-test.dat")
+      #expect(attrs.name == nil)
       #expect(attrs.type == .regular)
       #expect(attrs.size == 1024)
     }
@@ -88,7 +87,9 @@ struct SFTPClientTests {
         let names = try await sftp.withDirectory(atPath: dirPath) { directory in
           var names = Set<String>()
           for try await attrs in directory {
-            names.insert(attrs.name)
+            if let name = attrs.name {
+              names.insert(name)
+            }
           }
           return names
         }
