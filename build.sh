@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export OPENSSL=openssl-3.6.0
-export LIBSSH=libssh-0.11.3
+export OPENSSL=openssl-3.6.1
+export LIBSSH=libssh-0.12.0
 
 set -e
 

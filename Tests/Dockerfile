@@ -1,6 +1,6 @@
 # check=skip=SecretsUsedInArgOrEnv
 # Dockerfile for SSH test server
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Install SSH server
 RUN apt-get update
