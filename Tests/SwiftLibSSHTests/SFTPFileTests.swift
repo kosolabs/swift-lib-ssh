@@ -4,6 +4,24 @@ import Testing
 @testable import SwiftLibSSH
 
 struct SFTPFileTests {
+  @Test func testAttributes() async throws {
+    try await withAuthenticatedClient { ssh in
+      let path = "/tmp/stat-file-test.dat"
+      try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=1")
+
+      let attrs = try await ssh.withSftp { sftp in
+        try await sftp.withSftpFile(atPath: path, accessType: .readOnly) { file in
+          try await file.attributes()
+        }
+      }
+
+      // TODO: In test environment, this is null
+      // #expect(attrs.name == "stat-test.dat")
+      #expect(attrs.type == .regular)
+      #expect(attrs.size == 1024)
+    }
+  }
+
   @Test func testReadSmall() async throws {
     try await withAuthenticatedClient { ssh in
       let srcPath = "/tmp/read-small-test.dat"

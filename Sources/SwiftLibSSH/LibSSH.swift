@@ -442,6 +442,15 @@ final actor SSHSession {
     }
   }
 
+  func statFile(id: SFTPFileID) throws -> SFTPAttributes {
+    let file = try file(id: id)
+    guard let attributes = sftp_fstat(file) else {
+      throw SSHError.sftpSeekFailed(getError())
+    }
+    defer { sftp_attributes_free(attributes) }
+    return SFTPAttributes.from(raw: attributes.pointee)
+  }
+
   func seekFile(id: SFTPFileID, offset: UInt64) throws {
     let file = try file(id: id)
     guard sftp_seek64(file, offset) == SSH_OK else {

@@ -11,7 +11,23 @@ func metrics(size: UInt64, duration: Duration) -> String {
 }
 
 struct SFTPClientTests {
-  @Test func testStatAndSetPermissions() async throws {
+  @Test func testAttributes() async throws {
+    try await withAuthenticatedClient { ssh in
+      let path = "/tmp/stat-test.dat"
+      try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=1")
+
+      let attrs = try await ssh.withSftp { sftp in
+        try await sftp.attributes(atPath: path)
+      }
+
+      // TODO: In test environment, this is null
+      // #expect(attrs.name == "stat-test.dat")
+      #expect(attrs.type == .regular)
+      #expect(attrs.size == 1024)
+    }
+  }
+
+  @Test func testSetPermissions() async throws {
     try await withAuthenticatedClient { ssh in
       // Prepare a temp file
       try await ssh.execute("rm -f /tmp/sftp-perm.txt && touch /tmp/sftp-perm.txt")
@@ -107,7 +123,7 @@ struct SFTPClientTests {
       let expected = try await ssh.md5(ofFile: srcPath)
 
       try await ssh.withSftp { sftp in
-        let size = try await sftp.attributes(atPath: srcPath).size
+        let attrs = try await sftp.attributes(atPath: srcPath)
         let transferred = Atomic<UInt64>(0)
 
         let elapsed = try await ContinuousClock().measure {
@@ -115,9 +131,9 @@ struct SFTPClientTests {
             transferred.store(progress, ordering: .relaxed)
           }
         }
-        print("Download: \(metrics(size: size, duration: elapsed))")
+        print("Download: \(metrics(size: attrs.size, duration: elapsed))")
 
-        #expect(transferred.load(ordering: .relaxed) == size)
+        #expect(transferred.load(ordering: .relaxed) == attrs.size)
       }
 
       let actual = try md5(ofFile: destURL.path)
