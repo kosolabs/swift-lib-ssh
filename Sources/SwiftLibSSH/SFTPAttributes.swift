@@ -48,6 +48,42 @@ public struct SFTPAttributes: Sendable {
     return String(cString: cString, encoding: .utf8)
   }
 
+  public init(
+    name: String? = nil,
+    flags: UInt32 = 0,
+    type: Type = .unknown,
+    size: UInt64 = 0,
+    uid: UInt32 = 0,
+    gid: UInt32 = 0,
+    owner: String? = nil,
+    group: String? = nil,
+    permissions: UInt32 = 0,
+    accessTime: Date = Date(timeIntervalSince1970: 0),
+    accessTimeNanos: UInt32 = 0,
+    createTime: Date = Date(timeIntervalSince1970: 0),
+    createTimeNanos: UInt32 = 0,
+    modifyTime: Date = Date(timeIntervalSince1970: 0),
+    modifyTimeNanos: UInt32 = 0,
+    extendedCount: UInt32 = 0
+  ) {
+    self.name = name
+    self.flags = flags
+    self.type = type
+    self.size = size
+    self.uid = uid
+    self.gid = gid
+    self.owner = owner
+    self.group = group
+    self.permissions = permissions
+    self.accessTime = accessTime
+    self.accessTimeNanos = accessTimeNanos
+    self.createTime = createTime
+    self.createTimeNanos = createTimeNanos
+    self.modifyTime = modifyTime
+    self.modifyTimeNanos = modifyTimeNanos
+    self.extendedCount = extendedCount
+  }
+
   static func from(raw: sftp_attributes_struct) -> SFTPAttributes {
     SFTPAttributes(
       name: string(from: raw.name),
