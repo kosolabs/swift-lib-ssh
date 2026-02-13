@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.6.0...v1.7.0) (2026-02-13)
+
+
+### Features
+
+* add public initializer for SFTPAttributes ([#77](https://github.com/kosolabs/swift-lib-ssh/issues/77)) ([9a58a3e](https://github.com/kosolabs/swift-lib-ssh/commit/9a58a3e525b04d5b14b9ea620ed988c53d51891f))
+
 ## [1.6.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.5.1...v1.6.0) (2026-02-10)
 
 
