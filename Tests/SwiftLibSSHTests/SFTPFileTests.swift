@@ -201,4 +201,32 @@ struct SFTPFileTests {
       #expect(actual == expected)
     }
   }
+
+  @Test func testSimultaneousDownload() async throws {
+    try await withAuthenticatedClient { ssh in
+      let path1 = "/tmp/simultaneous-1-test.dat"
+      let path2 = "/tmp/simultaneous-2-test.dat"
+
+      // Create two large files
+      try await ssh.execute("dd if=/dev/urandom of=\(path1) bs=1M count=5")
+      try await ssh.execute("dd if=/dev/urandom of=\(path2) bs=1M count=5")
+
+      let expected1 = try await ssh.md5(ofFile: path1)
+      let expected2 = try await ssh.md5(ofFile: path2)
+
+      try await ssh.withSftp { sftp in
+        async let md5_1 = sftp.withSftpFile(atPath: path1, accessType: .readOnly) { file in
+          try await file.read().md5()
+        }
+        async let md5_2 = sftp.withSftpFile(atPath: path2, accessType: .readOnly) { file in
+          try await file.read().md5()
+        }
+
+        let (actual1, actual2) = try await (md5_1, md5_2)
+
+        #expect(actual1 == expected1)
+        #expect(actual2 == expected2)
+      }
+    }
+  }
 }
