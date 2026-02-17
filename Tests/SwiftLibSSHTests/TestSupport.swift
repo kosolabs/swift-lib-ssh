@@ -36,10 +36,21 @@ func md5(
     .lowercased()
 }
 
+struct TestError: Error {
+  let message: String
+}
+
 extension Data {
   func md5() -> String {
     let digest = Insecure.MD5.hash(data: self)
     return digest.map { String(format: "%02hhx", $0) }.joined()
+  }
+
+  func decoded(as encoding: String.Encoding) throws -> String {
+    guard let str = String(data: self, encoding: encoding) else {
+      throw TestError(message: "Failed to decode data as \(encoding)")
+    }
+    return str
   }
 }
 

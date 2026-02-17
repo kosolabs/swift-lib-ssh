@@ -173,4 +173,16 @@ struct SFTPClientTests {
       #expect(actual == expected)
     }
   }
+
+  @Test func testMissingFileThrowsNoSuchFile() async throws {
+    await #expect {
+      try await withAuthenticatedClient { ssh in
+        try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: "/tmp/missing.dat")
+        }
+      }
+    } throws: { error in
+      (error as? SSHError)?.sftpError == .noSuchFile
+    }
+  }
 }

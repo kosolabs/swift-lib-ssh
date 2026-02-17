@@ -37,6 +37,7 @@ func client() async throws -> SSHClient {
     host: host, port: port, user: user, password: password)
 }
 
+@discardableResult
 func withAuthenticatedClient<T: Sendable>(
   perform body: @Sendable (SSHClient) async throws -> T
 ) async throws -> T {
@@ -97,6 +98,55 @@ struct SSHAuthTests {
       let expected = user
       #expect(actual == expected)
       #expect(proc.status.code == 0)
+    }
+  }
+
+  @Test func testNoPasswordThrowsAuthenticationFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(host: host, port: port, user: user)
+    } throws: { error in
+      (error as? SSHError)?.isAuthenticationFailed == true
+    }
+  }
+
+  @Test func testBadPasswordThrowsAuthenticationFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(host: host, port: port, user: user, password: "bad")
+    } throws: { error in
+      (error as? SSHError)?.isAuthenticationFailed == true
+    }
+  }
+
+  @Test func testMissingPrivateKeyThrowsAuthenticationFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(
+        host: host, port: port, user: user, privateKeyURL: URL(filePath: "/tmp/missing_pk"))
+    } throws: { error in
+      (error as? SSHError)?.isAuthenticationFailed == true
+    }
+  }
+
+  @Test func testInvalidHostThrowsConnectionFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(host: "invalid", user: user)
+    } throws: { error in
+      (error as? SSHError)?.isConnectionFailed == true
+    }
+  }
+
+  @Test func testInvalidPortThrowsConnectionFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(host: host, port: 2200, user: user)
+    } throws: { error in
+      (error as? SSHError)?.isConnectionFailed == true
+    }
+  }
+
+  @Test func testTimeoutThrowsConnectionFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(host: "192.0.2.1", user: user)
+    } throws: { error in
+      (error as? SSHError)?.isConnectionFailed == true
     }
   }
 }
