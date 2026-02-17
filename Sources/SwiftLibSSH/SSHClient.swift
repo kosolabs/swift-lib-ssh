@@ -2,13 +2,6 @@ import CLibSSH
 import Dispatch
 import Foundation
 
-public enum SSHClientError: Error {
-  case connectionFailed(String)
-  case authenticationFailed(String)
-  case sessionError(String)
-  case decodeFailed(String)
-}
-
 public struct SSHClient: Sendable {
   public typealias CommandResult = (status: SSHExitStatus, stdout: Data, stderr: Data)
 
@@ -36,7 +29,7 @@ public struct SSHClient: Sendable {
     user: String, privateKeyURL: URL, passphrase: String? = nil
   ) async throws {
     guard FileManager.default.fileExists(atPath: privateKeyURL.path) else {
-      throw SSHClientError.authenticationFailed("Private key file not found: \(privateKeyURL)")
+      throw SSHError.authenticationFailed(message: "Private key file not found: \(privateKeyURL)")
     }
     try await session.withImportedPrivateKey(from: privateKeyURL, passphrase: passphrase) {
       privateKey in
@@ -178,7 +171,7 @@ public struct SSHClient: Sendable {
 
   func isConnectedOrThrow() async throws {
     if await !isConnected {
-      throw SSHClientError.sessionError("SSH session is closed")
+      throw SSHError.connectionFailed(message: "SSH session is closed")
     }
   }
 
@@ -219,14 +212,5 @@ public struct SSHClient: Sendable {
       try await channel.execute(command: command)
       return try await body(channel)
     }
-  }
-}
-
-extension Data {
-  func decoded(as encoding: String.Encoding) throws -> String {
-    guard let str = String(data: self, encoding: encoding) else {
-      throw SSHClientError.decodeFailed("Failed to decode data as \(encoding)")
-    }
-    return str
   }
 }

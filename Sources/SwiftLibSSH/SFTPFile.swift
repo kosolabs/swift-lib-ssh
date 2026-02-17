@@ -1,12 +1,5 @@
 import Foundation
 
-public enum SFTPFileError: Error {
-  case createFileFailed
-  case openFileForReadFailed
-  case openFileForWriteFailed
-  case writeFailed
-}
-
 public class SFTPReader: AsyncSequence {
   private let file: SFTPFile
   private let offset: UInt64
@@ -131,7 +124,9 @@ public struct SFTPFile: Sendable {
       let buffer = data.subdata(in: curr..<next)
       let bytesWritten = try await session.writeFile(id: id, data: buffer)
       if bytesWritten != buffer.count {
-        throw SFTPFileError.writeFailed
+        throw SSHError.invalidState(
+          message:
+            "Failed to write all data to file: \(bytesWritten) of \(buffer.count) bytes written")
       }
     }
   }
@@ -161,11 +156,11 @@ public struct SFTPFile: Sendable {
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
     if !FileManager.default.createFile(atPath: localURL.path, contents: nil) {
-      throw SFTPFileError.createFileFailed
+      throw SSHError.invalidState(message: "Failed to create local file at \(localURL)")
     }
 
     guard let fp = try? FileHandle(forWritingTo: localURL) else {
-      throw SFTPFileError.openFileForWriteFailed
+      throw SSHError.invalidState(message: "Failed to open local file for writing at \(localURL)")
     }
     defer { try? fp.close() }
 
@@ -182,7 +177,7 @@ public struct SFTPFile: Sendable {
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
     guard let fp = try? FileHandle(forReadingFrom: localURL) else {
-      throw SFTPFileError.openFileForReadFailed
+      throw SSHError.invalidState(message: "Failed to open local file for reading at \(localURL)")
     }
     defer { try? fp.close() }
 

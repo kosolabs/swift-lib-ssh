@@ -121,17 +121,10 @@ struct SSHClientTests {
 
     await ssh.close()
 
-    do {
+    await #expect {
       try await ssh.execute("whoami")
-      Issue.record("Expected error to be thrown")
-    } catch let error as SSHClientError {
-      if case .sessionError(let message) = error {
-        #expect(message == "SSH session is closed")
-      } else {
-        Issue.record("Expected sessionError, got \(error)")
-      }
-    } catch {
-      Issue.record("Expected SSHClientError, got \(type(of: error))")
+    } throws: { error in
+      (error as? SSHError)?.isConnectionFailed == true
     }
   }
 }

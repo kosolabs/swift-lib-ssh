@@ -229,4 +229,36 @@ struct SFTPFileTests {
       }
     }
   }
+
+  @Test func testReadRestrictedThrowsPermissionDenied() async throws {
+    await #expect {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/restricted.dat"
+        try await ssh.execute("touch \(srcPath)")
+        try await ssh.execute("chmod 000 \(srcPath)")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            for try await _ in file.stream(length: 1024) {}
+          }
+        }
+      }
+    } throws: { error in
+      (error as? SSHError)?.sftpError == .permissionDenied
+    }
+  }
+
+  @Test func testReadDirectoryThrowsFailed() async throws {
+    await #expect {
+      try await withAuthenticatedClient { ssh in
+        try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: "/tmp", accessType: .readOnly) { file in
+            for try await _ in file.stream(length: 1024) {}
+          }
+        }
+      }
+    } throws: { error in
+      (error as? SSHError)?.sftpError == .failure
+    }
+  }
 }
