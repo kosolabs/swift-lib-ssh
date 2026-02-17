@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.7.0...v1.7.1) (2026-02-17)
+
+
+### Bug Fixes
+
+* all errors into a single error enum ([#81](https://github.com/kosolabs/swift-lib-ssh/issues/81)) ([b360009](https://github.com/kosolabs/swift-lib-ssh/commit/b360009401f59e087cf4b2b5163797476871556c))
+
 ## [1.7.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.6.0...v1.7.0) (2026-02-13)
 
 
