@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.7.1...v1.8.0) (2026-02-19)
+
+
+### Features
+
+* add support for removing files ([#83](https://github.com/kosolabs/swift-lib-ssh/issues/83)) ([3e49dbe](https://github.com/kosolabs/swift-lib-ssh/commit/3e49dbe8b983b5fdb172fa50ffeefa985d316453))
+
 ## [1.7.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.7.0...v1.7.1) (2026-02-17)
 
 
