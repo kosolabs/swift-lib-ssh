@@ -35,6 +35,10 @@ public struct SFTPClient: Sendable {
     try await session.setMode(id: id, path: path, mode: mode)
   }
 
+  public func removeFile(atPath path: String) async throws {
+    try await session.unlink(id: id, path: path)
+  }
+
   public func limits() async throws -> SFTPLimits {
     try await session.limits(id: id)
   }

@@ -439,6 +439,11 @@ final actor SSHSession {
     return SFTPLimits.from(raw: raw.pointee)
   }
 
+  func unlink(id: SFTPClientID, path: String) throws {
+    let sftp = try sftp(id: id)
+    try validate(sftp_unlink(sftp, path), sftp: sftp)
+  }
+
   // MARK: - SFTP File
 
   func file(id: SFTPFileID) throws -> sftp_file {
