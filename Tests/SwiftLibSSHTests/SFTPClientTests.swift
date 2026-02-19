@@ -185,4 +185,33 @@ struct SFTPClientTests {
       (error as? SSHError)?.sftpError == .noSuchFile
     }
   }
+
+  @Test func testRemoveFile() async throws {
+    try await withAuthenticatedClient { ssh in
+      let path = "/tmp/test-remove-file.txt"
+      try await ssh.execute("touch \(path)")
+
+      try await ssh.withSftp { sftp in
+        try await sftp.removeFile(atPath: path)
+      }
+
+      let attrs = try await ssh.withSftp { sftp in
+        try? await sftp.attributes(atPath: path)
+      }
+
+      #expect(attrs == nil)
+    }
+  }
+
+  @Test func testRemoveMissingFileThrowsNoSuchFile() async throws {
+    await #expect {
+      try await withAuthenticatedClient { ssh in
+        try await ssh.withSftp { sftp in
+          try await sftp.removeFile(atPath: "/tmp/missing.dat")
+        }
+      }
+    } throws: { error in
+      (error as? SSHError)?.sftpError == .noSuchFile
+    }
+  }
 }
