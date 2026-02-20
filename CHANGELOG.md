@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.8.0...v1.9.0) (2026-02-20)
+
+
+### Features
+
+* add support for moving and rename files ([#85](https://github.com/kosolabs/swift-lib-ssh/issues/85)) ([b087fb7](https://github.com/kosolabs/swift-lib-ssh/commit/b087fb7f79535959f09d2059f12b48503be6a850))
+
 ## [1.8.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.7.1...v1.8.0) (2026-02-19)
 
 
