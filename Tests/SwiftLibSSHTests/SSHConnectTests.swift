@@ -52,8 +52,8 @@ func withAuthenticatedClient<T: Sendable>(
   }
 }
 
-struct SSHAuthTests {
-  @Test func testPasswordAuthentication() async throws {
+struct SSHConnectTests {
+  @Test func passwordAuthenticationSucceeds() async throws {
     try await SSHClient.withAuthenticatedClient(
       host: host, port: port, user: user, password: password
     ) { ssh in
@@ -68,7 +68,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testPrivateKeyFileAuthentication() async throws {
+  @Test func privateKeyFileAuthenticationSucceeds() async throws {
     try await SSHClient.withAuthenticatedClient(
       host: host, port: port, user: user, privateKeyURL: privateKey
     ) { ssh in
@@ -84,7 +84,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testBase64PrivateKeyAuthentication() async throws {
+  @Test func base64PrivateKeyAuthenticationSucceeds() async throws {
     let privateKey = try String(contentsOf: privateKey, encoding: .utf8)
     try await SSHClient.withAuthenticatedClient(
       host: host, port: port, user: user, base64PrivateKey: privateKey
@@ -101,7 +101,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testNoPasswordThrowsAuthenticationFailed() async throws {
+  @Test func noPasswordThrowsAuthenticationFailed() async throws {
     await #expect {
       try await SSHClient.connect(host: host, port: port, user: user)
     } throws: { error in
@@ -109,7 +109,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testBadPasswordThrowsAuthenticationFailed() async throws {
+  @Test func badPasswordThrowsAuthenticationFailed() async throws {
     await #expect {
       try await SSHClient.connect(host: host, port: port, user: user, password: "bad")
     } throws: { error in
@@ -117,7 +117,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testMissingPrivateKeyThrowsAuthenticationFailed() async throws {
+  @Test func missingPrivateKeyThrowsAuthenticationFailed() async throws {
     await #expect {
       try await SSHClient.connect(
         host: host, port: port, user: user, privateKeyURL: URL(filePath: "/tmp/missing_pk"))
@@ -126,7 +126,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testInvalidHostThrowsConnectionFailed() async throws {
+  @Test func invalidHostThrowsConnectionFailed() async throws {
     await #expect {
       try await SSHClient.connect(host: "invalid", user: user)
     } throws: { error in
@@ -134,7 +134,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testInvalidPortThrowsConnectionFailed() async throws {
+  @Test func invalidPortThrowsConnectionFailed() async throws {
     await #expect {
       try await SSHClient.connect(host: host, port: 2200, user: user)
     } throws: { error in
@@ -142,7 +142,7 @@ struct SSHAuthTests {
     }
   }
 
-  @Test func testTimeoutThrowsConnectionFailed() async throws {
+  @Test func timeoutThrowsConnectionFailed() async throws {
     await #expect {
       try await SSHClient.connect(host: "192.0.2.1", user: user)
     } throws: { error in

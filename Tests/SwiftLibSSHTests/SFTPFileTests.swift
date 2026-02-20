@@ -4,205 +4,277 @@ import Testing
 @testable import SwiftLibSSH
 
 struct SFTPFileTests {
-  @Test func testAttributes() async throws {
-    try await withAuthenticatedClient { ssh in
-      let path = "/tmp/stat-file-test.dat"
-      try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=1")
+  struct Attributes {
+    @Test func attributesSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/stat-file-test.dat"
+        try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=1")
 
-      let attrs = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: path, accessType: .readOnly) { file in
-          try await file.attributes()
-        }
-      }
-
-      #expect(attrs.name == nil)
-      #expect(attrs.type == .regular)
-      #expect(attrs.size == 1024)
-    }
-  }
-
-  @Test func testReadSmall() async throws {
-    try await withAuthenticatedClient { ssh in
-      let srcPath = "/tmp/read-small-test.dat"
-
-      try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1024 count=1")
-      let expected = try await ssh.md5(ofFile: srcPath)
-
-      let actual = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-          try await file.read().md5()
-        }
-      }
-
-      #expect(actual == expected)
-    }
-  }
-
-  @Test func testReadSome() async throws {
-    try await withAuthenticatedClient { ssh in
-      let srcPath = "/tmp/read-some-test.dat"
-      let offset = 153600 as UInt64
-      let length = 153600 as UInt64
-
-      try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
-      let expected = try await ssh.md5(ofFile: srcPath, offset: offset, length: length)
-
-      let actual = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-          try await file.read(offset: offset, length: length).md5()
-        }
-      }
-
-      #expect(actual == expected)
-    }
-  }
-
-  @Test func testReadBig() async throws {
-    try await withAuthenticatedClient { ssh in
-      let srcPath = "/tmp/read-big-test.dat"
-
-      try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
-      let expected = try await ssh.md5(ofFile: srcPath)
-
-      let actual = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-          try await file.read().md5()
-        }
-      }
-
-      #expect(actual == expected)
-    }
-  }
-
-  @Test func testStreamSmall() async throws {
-    try await withAuthenticatedClient { ssh in
-      let srcPath = "/tmp/stream-small-test.dat"
-
-      try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1024 count=1")
-      let expected = try await ssh.md5(ofFile: srcPath)
-
-      let actual = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-          var result = Data()
-          for try await data in file.stream(length: 1024) {
-            result.append(data)
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: path, accessType: .readOnly) { file in
+            try await file.attributes()
           }
-          return result.md5()
         }
-      }
 
-      #expect(actual == expected)
+        #expect(attrs.name == nil)
+        #expect(attrs.type == .regular)
+        #expect(attrs.size == 1024)
+      }
     }
   }
 
-  @Test func testStreamSome() async throws {
-    try await withAuthenticatedClient { ssh in
-      let srcPath = "/tmp/stream-some-test.dat"
-      let offset = 153600 as UInt64
-      let length = 153600 as UInt64
+  struct Read {
+    @Test func readSmallSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/read-small-test.dat"
 
-      try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
-      let expected = try await ssh.md5(ofFile: srcPath, offset: offset, length: length)
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1024 count=1")
+        let expected = try await ssh.md5(ofFile: srcPath)
 
-      let actual = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-          var result = Data()
-          for try await data in file.stream(offset: offset, length: length) {
-            result.append(data)
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            try await file.read().md5()
           }
-          return result.md5()
         }
+
+        #expect(actual == expected)
       }
-
-      #expect(actual == expected)
     }
-  }
 
-  @Test func testStreamBig() async throws {
-    try await withAuthenticatedClient { ssh in
-      let srcPath = "/tmp/stream-big-test.dat"
+    @Test func readSomeSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/read-some-test.dat"
+        let offset = 153600 as UInt64
+        let length = 153600 as UInt64
 
-      try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
-      let expected = try await ssh.md5(ofFile: srcPath)
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
+        let expected = try await ssh.md5(ofFile: srcPath, offset: offset, length: length)
 
-      let actual = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-          var result = Data()
-          for try await data in file.stream(length: 1_048_576) {
-            result.append(data)
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            try await file.read(offset: offset, length: length).md5()
           }
-          return result.md5()
         }
-      }
 
-      #expect(actual == expected)
+        #expect(actual == expected)
+      }
     }
-  }
 
-  @Test func testCancellationOfForAwaitLoopOverSftpStream() async throws {
-    try await withAuthenticatedClient { ssh in
-      try await ssh.execute("dd if=/dev/urandom of=/tmp/drain.dat bs=1M count=1")
+    @Test func readBigSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/read-big-test.dat"
 
-      let expected = try await ssh.withSftp { sftp in
-        try await sftp.attributes(atPath: "/tmp/drain.dat").size
-      }
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
+        let expected = try await ssh.md5(ofFile: srcPath)
 
-      let actual = try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: "/tmp/drain.dat", accessType: .readOnly) { file in
-          for try await data in file.stream() {
-            // Returning here causes stream to cancel
-            return data
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            try await file.read().md5()
           }
-          fatalError("Stream should not complete")
         }
-      }
 
-      #expect(actual.count > 0)
-      #expect(actual.count < expected)
+        #expect(actual == expected)
+      }
+    }
+
+    @Test func readMissingFileThrowsNoSuchFile() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          try await ssh.withSftp { sftp in
+            try await sftp.withSftpFile(atPath: "/tmp/nonexistent.dat", accessType: .readOnly) {
+              file in
+              try await file.read()
+            }
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .noSuchFile
+      }
+    }
+
+    @Test func readRestrictedThrowsPermissionDenied() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          let srcPath = "/tmp/restricted.dat"
+          try await ssh.execute("touch \(srcPath)")
+          try await ssh.execute("chmod 000 \(srcPath)")
+
+          try await ssh.withSftp { sftp in
+            try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+              for try await _ in file.stream(length: 1024) {}
+            }
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .permissionDenied
+      }
+    }
+
+    @Test func readDirectoryThrowsFailed() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          try await ssh.withSftp { sftp in
+            try await sftp.withSftpFile(atPath: "/tmp", accessType: .readOnly) { file in
+              for try await _ in file.stream(length: 1024) {}
+            }
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .failure
+      }
     }
   }
 
-  @Test func testWriteSmall() async throws {
-    try await withAuthenticatedClient { ssh in
-      let destPath = "/tmp/write-small-test.dat"
+  struct Stream {
+    @Test func streamSmallSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/stream-small-test.dat"
 
-      let data =
-        Data((0..<1024).map { _ in UInt8.random(in: .min ... .max) })
-      let expected = data.md5()
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1024 count=1")
+        let expected = try await ssh.md5(ofFile: srcPath)
 
-      try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: destPath, accessType: .writeOnly, mode: 0o644) { file in
-          try await file.write(data: data)
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            var result = Data()
+            for try await data in file.stream(length: 1024) {
+              result.append(data)
+            }
+            return result.md5()
+          }
         }
+
+        #expect(actual == expected)
       }
+    }
 
-      let actual = try await ssh.md5(ofFile: destPath)
+    @Test func streamSomeSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/stream-some-test.dat"
+        let offset = 153600 as UInt64
+        let length = 153600 as UInt64
 
-      #expect(actual == expected)
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
+        let expected = try await ssh.md5(ofFile: srcPath, offset: offset, length: length)
+
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            var result = Data()
+            for try await data in file.stream(offset: offset, length: length) {
+              result.append(data)
+            }
+            return result.md5()
+          }
+        }
+
+        #expect(actual == expected)
+      }
+    }
+
+    @Test func streamBigSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/stream-big-test.dat"
+
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
+        let expected = try await ssh.md5(ofFile: srcPath)
+
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            var result = Data()
+            for try await data in file.stream(length: 1_048_576) {
+              result.append(data)
+            }
+            return result.md5()
+          }
+        }
+
+        #expect(actual == expected)
+      }
+    }
+
+    @Test func cancellationOfForAwaitLoopOverSftpStreamSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        try await ssh.execute("dd if=/dev/urandom of=/tmp/drain.dat bs=1M count=1")
+
+        let expected = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: "/tmp/drain.dat").size
+        }
+
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: "/tmp/drain.dat", accessType: .readOnly) { file in
+            for try await data in file.stream() {
+              // Returning here causes stream to cancel
+              return data
+            }
+            fatalError("Stream should not complete")
+          }
+        }
+
+        #expect(actual.count > 0)
+        #expect(actual.count < expected)
+      }
+    }
+
+    @Test func streamMissingFileThrowsNoSuchFile() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          try await ssh.withSftp { sftp in
+            try await sftp.withSftpFile(atPath: "/tmp/nonexistent.dat", accessType: .readOnly) {
+              file in
+              for try await _ in file.stream(length: 1024) {}
+            }
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .noSuchFile
+      }
     }
   }
 
-  @Test func testWriteBig() async throws {
-    try await withAuthenticatedClient { ssh in
-      let destPath = "/tmp/write-big-test.dat"
+  struct Write {
+    @Test func writeSmallSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let destPath = "/tmp/write-small-test.dat"
 
-      let data =
-        Data((0..<1_048_576).map { _ in UInt8.random(in: .min ... .max) })
-      let expected = data.md5()
+        let data =
+          Data((0..<1024).map { _ in UInt8.random(in: .min ... .max) })
+        let expected = data.md5()
 
-      try await ssh.withSftp { sftp in
-        try await sftp.withSftpFile(atPath: destPath, accessType: .writeOnly, mode: 0o644) { file in
-          try await file.write(data: data)
+        try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: destPath, accessType: .writeOnly, mode: 0o644) {
+            file in
+            try await file.write(data: data)
+          }
         }
+
+        let actual = try await ssh.md5(ofFile: destPath)
+
+        #expect(actual == expected)
       }
+    }
 
-      let actual = try await ssh.md5(ofFile: destPath)
+    @Test func writeBigSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let destPath = "/tmp/write-big-test.dat"
 
-      #expect(actual == expected)
+        let data =
+          Data((0..<1_048_576).map { _ in UInt8.random(in: .min ... .max) })
+        let expected = data.md5()
+
+        try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: destPath, accessType: .writeOnly, mode: 0o644) {
+            file in
+            try await file.write(data: data)
+          }
+        }
+
+        let actual = try await ssh.md5(ofFile: destPath)
+
+        #expect(actual == expected)
+      }
     }
   }
 
-  @Test func testSimultaneousDownload() async throws {
+  @Test func simultaneousDownloadsSucceed() async throws {
     try await withAuthenticatedClient { ssh in
       let path1 = "/tmp/simultaneous-1-test.dat"
       let path2 = "/tmp/simultaneous-2-test.dat"
@@ -227,38 +299,6 @@ struct SFTPFileTests {
         #expect(actual1 == expected1)
         #expect(actual2 == expected2)
       }
-    }
-  }
-
-  @Test func testReadRestrictedThrowsPermissionDenied() async throws {
-    await #expect {
-      try await withAuthenticatedClient { ssh in
-        let srcPath = "/tmp/restricted.dat"
-        try await ssh.execute("touch \(srcPath)")
-        try await ssh.execute("chmod 000 \(srcPath)")
-
-        try await ssh.withSftp { sftp in
-          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
-            for try await _ in file.stream(length: 1024) {}
-          }
-        }
-      }
-    } throws: { error in
-      (error as? SSHError)?.sftpError == .permissionDenied
-    }
-  }
-
-  @Test func testReadDirectoryThrowsFailed() async throws {
-    await #expect {
-      try await withAuthenticatedClient { ssh in
-        try await ssh.withSftp { sftp in
-          try await sftp.withSftpFile(atPath: "/tmp", accessType: .readOnly) { file in
-            for try await _ in file.stream(length: 1024) {}
-          }
-        }
-      }
-    } throws: { error in
-      (error as? SSHError)?.sftpError == .failure
     }
   }
 }

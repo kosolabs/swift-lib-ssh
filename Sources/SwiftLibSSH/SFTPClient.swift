@@ -35,6 +35,10 @@ public struct SFTPClient: Sendable {
     try await session.setMode(id: id, path: path, mode: mode)
   }
 
+  public func move(from oldPath: String, to newPath: String) async throws {
+    try await session.rename(id: id, from: oldPath, to: newPath)
+  }
+
   public func removeFile(atPath path: String) async throws {
     try await session.unlink(id: id, path: path)
   }
