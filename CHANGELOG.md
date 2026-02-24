@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.9.0...v1.10.0) (2026-02-24)
+
+
+### Features
+
+* support macOS 15.0 and build against swift 6.1 ([#88](https://github.com/kosolabs/swift-lib-ssh/issues/88)) ([a3f4e37](https://github.com/kosolabs/swift-lib-ssh/commit/a3f4e373dfabdaea2f35621a4bf5f0de06a09d9e))
+
 ## [1.9.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.8.0...v1.9.0) (2026-02-20)
 
 
