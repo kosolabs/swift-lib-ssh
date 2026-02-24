@@ -2,6 +2,7 @@
 
 export OPENSSL=openssl-3.6.1
 export LIBSSH=libssh-0.12.0
+export MACOSX_DEPLOYMENT_TARGET=15.0
 
 set -e
 
@@ -25,7 +26,8 @@ cd $BUILD/src/$OPENSSL
   no-shared \
   no-tests \
   --prefix=$BUILD/install/openssl-arm64 \
-  --openssldir=$BUILD/install/openssl-arm64/ssl
+  --openssldir=$BUILD/install/openssl-arm64/ssl \
+  -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET
 
 make clean
 make -j$(sysctl -n hw.ncpu)
@@ -37,7 +39,8 @@ make install_sw
   no-shared \
   no-tests \
   --prefix=$BUILD/install/openssl-x86_64 \
-  --openssldir=$BUILD/install/openssl-x86_64/ssl
+  --openssldir=$BUILD/install/openssl-x86_64/ssl \
+  -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET
 
 make clean
 make -j$(sysctl -n hw.ncpu)
@@ -81,6 +84,7 @@ cmake $BUILD/src/$LIBSSH \
   -DWITH_EXAMPLES=OFF \
   -DWITH_TESTING=OFF \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET \
   -DCMAKE_INSTALL_PREFIX=$BUILD/install/libssh-arm64 \
   -DOPENSSL_ROOT_DIR=$BUILD/install/openssl-arm64
 
@@ -100,6 +104,7 @@ cmake $BUILD/src/$LIBSSH \
   -DWITH_EXAMPLES=OFF \
   -DWITH_TESTING=OFF \
   -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET \
   -DCMAKE_INSTALL_PREFIX=$BUILD/install/libssh-x86_64 \
   -DOPENSSL_ROOT_DIR=$BUILD/install/openssl-x86_64
 
@@ -131,3 +136,5 @@ cp $BUILD/install/openssl-universal/lib/libssl.a Sources/CLibSSH/lib/
 cp $BUILD/install/openssl-universal/lib/libcrypto.a Sources/CLibSSH/lib/
 cp $BUILD/install/libssh-universal/include/libssh/*.h Sources/CLibSSH/include/libssh/
 touch Sources/CLibSSH/dummy.c
+
+echo "✅ Built CLibSSH with OpenSSL $OPENSSL and libssh $LIBSSH"
