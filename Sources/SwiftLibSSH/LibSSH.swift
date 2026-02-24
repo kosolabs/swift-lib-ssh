@@ -256,7 +256,7 @@ final actor SSHSession {
 
   // MARK: - Key Operations
 
-  func withImportedPrivateKey<T>(
+  func withImportedPrivateKey<T: Sendable>(
     _id: SSHKeyID = SSHKeyID(), from file: URL, passphrase: String? = nil,
     perform body: (SSHKey) async throws -> T
   ) async throws -> T {
@@ -275,7 +275,7 @@ final actor SSHSession {
     return SSHKey(session: self, id: _id)
   }
 
-  func withImportedPrivateKey<T>(
+  func withImportedPrivateKey<T: Sendable>(
     _id: SSHKeyID = SSHKeyID(), from base64: String, passphrase: String? = nil,
     perform body: (SSHKey) async throws -> T
   ) async throws -> T {
@@ -315,7 +315,7 @@ final actor SSHSession {
     return channel
   }
 
-  func withSessionChannel<T>(
+  func withSessionChannel<T: Sendable>(
     _id: SSHChannelID = SSHChannelID(),
     perform body: @Sendable (SSHSessionChannel) async throws -> T
   ) async throws -> T {
@@ -381,7 +381,7 @@ final actor SSHSession {
     return sftp
   }
 
-  func withSftp<T>(
+  func withSftp<T: Sendable>(
     _id: SFTPClientID = SFTPClientID(),
     perform body: (SFTPClient) async throws -> T
   ) async throws -> T {
@@ -458,7 +458,7 @@ final actor SSHSession {
     return trackedFile.file
   }
 
-  func withSftpFile<T>(
+  func withSftpFile<T: Sendable>(
     _id: SFTPFileID? = nil,
     id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0,
     perform body: (SFTPFile) async throws -> T
@@ -586,7 +586,7 @@ final actor SSHSession {
     aio.deallocate()
   }
 
-  func withFreeingAio<T>(
+  func withFreeingAio<T: Sendable>(
     id: SFTPAioID,
     perform body: (UnsafeMutablePointer<sftp_aio?>) throws -> T
   ) throws -> T {
