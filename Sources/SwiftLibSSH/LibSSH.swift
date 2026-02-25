@@ -230,6 +230,11 @@ final actor SSHSession {
     try setOption(SSH_OPTIONS_PORT, to: &port)
   }
 
+  func setTimeout(_ timeout: UInt) throws {
+    var timeout = timeout
+    try setOption(SSH_OPTIONS_TIMEOUT, to: &timeout)
+  }
+
   func connect() throws {
     try validate(ssh_connect(session))
   }
