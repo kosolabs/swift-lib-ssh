@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.10.0...v1.11.0) (2026-02-25)
+
+
+### Features
+
+* add support for setting any sftp attribute and connection timeout ([5daf610](https://github.com/kosolabs/swift-lib-ssh/commit/5daf6103c437e397a8936ce3abcdd17701cac5de))
+
 ## [1.10.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.9.0...v1.10.0) (2026-02-24)
 
 
