@@ -7,10 +7,11 @@ public struct SSHClient: Sendable {
 
   private let session: SSHSession
 
-  private init(host: String, port: UInt16 = 22) async throws {
+  private init(host: String, port: UInt16 = 22, timeout: UInt = 10) async throws {
     self.session = try SSHSession()
     try await session.setHost(host)
     try await session.setPort(UInt32(port))
+    try await session.setTimeout(timeout)
   }
 
   private func connect() async throws {
@@ -47,29 +48,30 @@ public struct SSHClient: Sendable {
   }
 
   public static func connect(
-    host: String, port: UInt16 = 22, user: String
+    host: String, port: UInt16 = 22, timeout: UInt = 10, user: String
   ) async throws -> SSHClient {
-    let client = try await SSHClient(host: host, port: port)
+    let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(user: user)
     return client
   }
 
   public static func connect(
-    host: String, port: UInt16 = 22, user: String, password: String
+    host: String, port: UInt16 = 22, timeout: UInt = 10, user: String, password: String
   ) async throws -> SSHClient {
-    let client = try await SSHClient(host: host, port: port)
+    let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(user: user, password: password)
     return client
   }
 
   public static func connect(
-    host: String, port: UInt16 = 22, user: String, privateKeyURL: URL, passphrase: String? = nil
+    host: String, port: UInt16 = 22, timeout: UInt = 10,
+    user: String, privateKeyURL: URL, passphrase: String? = nil
   ) async throws
     -> SSHClient
   {
-    let client = try await SSHClient(host: host, port: port)
+    let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(
       user: user, privateKeyURL: privateKeyURL, passphrase: passphrase)
@@ -77,12 +79,12 @@ public struct SSHClient: Sendable {
   }
 
   public static func connect(
-    host: String, port: UInt16 = 22, user: String,
-    base64PrivateKey: String, passphrase: String? = nil
+    host: String, port: UInt16 = 22, timeout: UInt = 10,
+    user: String, base64PrivateKey: String, passphrase: String? = nil
   ) async throws
     -> SSHClient
   {
-    let client = try await SSHClient(host: host, port: port)
+    let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(
       user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase)
@@ -91,11 +93,11 @@ public struct SSHClient: Sendable {
 
   @discardableResult
   public static func withAuthenticatedClient<T: Sendable>(
-    host: String, port: UInt16 = 22, user: String,
+    host: String, port: UInt16 = 22, timeout: UInt = 10, user: String,
     perform body: @Sendable (SSHClient) async throws -> T
   ) async throws -> T {
     let client = try await connect(
-      host: host, port: port, user: user
+      host: host, port: port, timeout: timeout, user: user
     )
     do {
       let result = try await body(client)
@@ -109,11 +111,11 @@ public struct SSHClient: Sendable {
 
   @discardableResult
   public static func withAuthenticatedClient<T: Sendable>(
-    host: String, port: UInt16 = 22, user: String, password: String,
+    host: String, port: UInt16 = 22, timeout: UInt = 10, user: String, password: String,
     perform body: @Sendable (SSHClient) async throws -> T
   ) async throws -> T {
     let client = try await connect(
-      host: host, port: port, user: user, password: password
+      host: host, port: port, timeout: timeout, user: user, password: password
     )
     do {
       let result = try await body(client)
@@ -127,12 +129,13 @@ public struct SSHClient: Sendable {
 
   @discardableResult
   public static func withAuthenticatedClient<T: Sendable>(
-    host: String, port: UInt16 = 22, user: String,
-    privateKeyURL: URL, passphrase: String? = nil,
+    host: String, port: UInt16 = 22, timeout: UInt = 10,
+    user: String, privateKeyURL: URL, passphrase: String? = nil,
     perform body: @Sendable (SSHClient) async throws -> T
   ) async throws -> T {
     let client = try await connect(
-      host: host, port: port, user: user, privateKeyURL: privateKeyURL, passphrase: passphrase
+      host: host, port: port, timeout: timeout,
+      user: user, privateKeyURL: privateKeyURL, passphrase: passphrase
     )
     do {
       let result = try await body(client)
@@ -146,12 +149,13 @@ public struct SSHClient: Sendable {
 
   @discardableResult
   public static func withAuthenticatedClient<T: Sendable>(
-    host: String, port: UInt16 = 22, user: String,
-    base64PrivateKey: String, passphrase: String? = nil,
+    host: String, port: UInt16 = 22, timeout: UInt = 10,
+    user: String, base64PrivateKey: String, passphrase: String? = nil,
     perform body: @Sendable (SSHClient) async throws -> T
   ) async throws -> T {
     let client = try await connect(
-      host: host, port: port, user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase
+      host: host, port: port, timeout: timeout,
+      user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase
     )
     do {
       let result = try await body(client)

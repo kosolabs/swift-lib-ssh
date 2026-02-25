@@ -230,6 +230,11 @@ final actor SSHSession {
     try setOption(SSH_OPTIONS_PORT, to: &port)
   }
 
+  func setTimeout(_ timeout: UInt) throws {
+    var timeout = timeout
+    try setOption(SSH_OPTIONS_TIMEOUT, to: &timeout)
+  }
+
   func connect() throws {
     try validate(ssh_connect(session))
   }
@@ -421,14 +426,56 @@ final actor SSHSession {
     return SFTPAttributes.from(raw: attributes.pointee)
   }
 
-  func setMode(id: SFTPClientID, path: String, mode: mode_t) throws {
+  func setStat(
+    id: SFTPClientID,
+    path: String,
+    size: UInt64? = nil,
+    uid: UInt32? = nil,
+    gid: UInt32? = nil,
+    permissions: mode_t? = nil,
+    accessTime: Date? = nil,
+    modifyTime: Date? = nil
+  ) throws {
     let sftp = try sftp(id: id)
     let attributes = try validate(sftp_stat(sftp, path), sftp: sftp)
     defer { sftp_attributes_free(attributes) }
 
-    // Only set permissions flag (0x00000004) and value
-    attributes.pointee.permissions = UInt32(mode)
-    attributes.pointee.flags = 0x0000_0004
+    var flags: UInt32 = 0
+
+    if let size {
+      attributes.pointee.size = size
+      flags |= UInt32(bitPattern: SSH_FILEXFER_ATTR_SIZE)
+    }
+
+    if uid != nil || gid != nil {
+      if let uid { attributes.pointee.uid = uid }
+      if let gid { attributes.pointee.gid = gid }
+      flags |= UInt32(bitPattern: SSH_FILEXFER_ATTR_UIDGID)
+    }
+
+    if let permissions {
+      attributes.pointee.permissions = UInt32(permissions)
+      flags |= UInt32(bitPattern: SSH_FILEXFER_ATTR_PERMISSIONS)
+    }
+
+    if let modifyTime {
+      attributes.pointee.mtime = UInt32(modifyTime.timeIntervalSince1970)
+      attributes.pointee.mtime_nseconds = 0
+    }
+
+    if let accessTime {
+      attributes.pointee.atime = UInt32(accessTime.timeIntervalSince1970)
+      attributes.pointee.atime_nseconds = 0
+    }
+
+    // SFTPv3 uses SSH_FILEXFER_ATTR_ACMODTIME (0x00000008) to set both
+    // atime and mtime together. When only one is provided we keep the
+    // existing value for the other (already present from the sftp_stat call).
+    if accessTime != nil || modifyTime != nil {
+      flags |= UInt32(bitPattern: SSH_FILEXFER_ATTR_ACMODTIME)
+    }
+
+    attributes.pointee.flags = flags
     try validate(sftp_setstat(sftp, path, attributes), sftp: sftp)
   }
 

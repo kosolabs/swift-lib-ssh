@@ -31,8 +31,25 @@ public struct SFTPClient: Sendable {
     try await session.stat(id: id, path: path)
   }
 
-  public func setPermissions(atPath path: String, mode: mode_t) async throws {
-    try await session.setMode(id: id, path: path, mode: mode)
+  public func setAttributes(
+    atPath path: String,
+    size: UInt64? = nil,
+    uid: UInt32? = nil,
+    gid: UInt32? = nil,
+    permissions: mode_t? = nil,
+    accessTime: Date? = nil,
+    modifyTime: Date? = nil
+  ) async throws {
+    try await session.setStat(
+      id: id,
+      path: path,
+      size: size,
+      uid: uid,
+      gid: gid,
+      permissions: permissions,
+      accessTime: accessTime,
+      modifyTime: modifyTime
+    )
   }
 
   public func move(from oldPath: String, to newPath: String) async throws {
@@ -52,7 +69,8 @@ public struct SFTPClient: Sendable {
     perform: @Sendable (SFTPFile) async throws -> T
   ) async throws -> T {
     try await session.withSftpFile(
-      id: id, path: path, accessType: accessType, mode: mode, perform: perform)
+      id: id, path: path, accessType: accessType, mode: mode, perform: perform
+    )
   }
 
   public func download(

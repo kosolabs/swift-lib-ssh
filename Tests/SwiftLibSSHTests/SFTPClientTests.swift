@@ -40,20 +40,178 @@ struct SFTPClientTests {
     }
   }
 
-  struct SetPermissions {
+  struct SetAttributes {
     @Test func setPermissionsSucceeds() async throws {
       try await withAuthenticatedClient { ssh in
-        // Prepare a temp file
-        try await ssh.execute("rm -f /tmp/sftp-perm.txt && touch /tmp/sftp-perm.txt")
+        let path = "/tmp/sftp-setattr-perm.txt"
+        try await ssh.execute("touch \(path) && chmod 0777 \(path)")
 
-        try await ssh.withSftp(perform: { sftp in
-          let before = try await sftp.attributes(atPath: "/tmp/sftp-perm.txt")
-          #expect((before.permissions & 0o777) != 0x644)
+        let before = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
 
-          try await sftp.setPermissions(atPath: "/tmp/sftp-perm.txt", mode: 0o644)
-          let after = try await sftp.attributes(atPath: "/tmp/sftp-perm.txt")
-          #expect((after.permissions & 0o777) == 0o644)
-        })
+        try await ssh.withSftp { sftp in
+          try await sftp.setAttributes(atPath: path, permissions: 0o600)
+        }
+
+        let after = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        #expect((after.permissions & 0o777) == 0o600)
+        // Unchanged
+        #expect(after.size == before.size)
+        #expect(after.uid == before.uid)
+        #expect(after.gid == before.gid)
+        #expect(after.accessTime == before.accessTime)
+        #expect(after.modifyTime == before.modifyTime)
+      }
+    }
+
+    @Test func setModifyTimeSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/sftp-setattr-mtime.txt"
+        try await ssh.execute("touch \(path)")
+
+        let before = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        let targetDate = Date(timeIntervalSince1970: 1_000_000)
+
+        try await ssh.withSftp { sftp in
+          try await sftp.setAttributes(atPath: path, modifyTime: targetDate)
+        }
+
+        let after = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        #expect(after.modifyTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
+        // Unchanged
+        #expect(after.size == before.size)
+        #expect(after.uid == before.uid)
+        #expect(after.gid == before.gid)
+        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect(after.accessTime == before.accessTime)
+      }
+    }
+
+    @Test func setAccessTimeSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/sftp-setattr-atime.txt"
+        try await ssh.execute("touch \(path)")
+
+        let before = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        let targetDate = Date(timeIntervalSince1970: 1_000_000)
+
+        try await ssh.withSftp { sftp in
+          try await sftp.setAttributes(atPath: path, accessTime: targetDate)
+        }
+
+        let after = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        #expect(after.accessTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
+        // Unchanged
+        #expect(after.size == before.size)
+        #expect(after.uid == before.uid)
+        #expect(after.gid == before.gid)
+        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect(after.modifyTime == before.modifyTime)
+      }
+    }
+
+    @Test func setSizeSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/sftp-setattr-size.dat"
+        try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=4")
+
+        let before = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        try await ssh.withSftp { sftp in
+          try await sftp.setAttributes(atPath: path, size: 1024)
+        }
+
+        let after = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        #expect(after.size == 1024)
+        // Unchanged
+        #expect(after.uid == before.uid)
+        #expect(after.gid == before.gid)
+        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect(after.accessTime == before.accessTime)
+        #expect(after.modifyTime == before.modifyTime)
+      }
+    }
+
+    @Test func setUidGidSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/sftp-setattr-uidgid.txt"
+        try await ssh.execute("touch \(path)")
+
+        let before = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        // Setting uid/gid to their current values is always permitted
+        try await ssh.withSftp { sftp in
+          try await sftp.setAttributes(atPath: path, uid: before.uid, gid: before.gid)
+        }
+
+        let after = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        #expect(after.uid == before.uid)
+        #expect(after.gid == before.gid)
+        // Unchanged
+        #expect(after.size == before.size)
+        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect(after.accessTime == before.accessTime)
+        #expect(after.modifyTime == before.modifyTime)
+      }
+    }
+
+    @Test func setMultipleAttributesSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/sftp-setattr-multi.dat"
+        try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=4 && chmod 0777 \(path)")
+
+        let before = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        let targetDate = Date(timeIntervalSince1970: 2_000_000)
+
+        try await ssh.withSftp { sftp in
+          try await sftp.setAttributes(
+            atPath: path,
+            size: 512,
+            permissions: 0o644,
+            modifyTime: targetDate
+          )
+        }
+
+        let after = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: path)
+        }
+
+        #expect(after.size == 512)
+        #expect((after.permissions & 0o777) == 0o644)
+        #expect(after.modifyTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
+        // Unchanged
+        #expect(after.uid == before.uid)
+        #expect(after.gid == before.gid)
+        #expect(after.accessTime == before.accessTime)
       }
     }
   }

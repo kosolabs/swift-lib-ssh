@@ -144,7 +144,7 @@ struct SSHConnectTests {
 
   @Test func timeoutThrowsConnectionFailed() async throws {
     await #expect {
-      try await SSHClient.connect(host: "192.0.2.1", user: user)
+      try await SSHClient.connect(host: "192.0.2.1", timeout: 1, user: user)
     } throws: { error in
       (error as? SSHError)?.isConnectionFailed == true
     }
