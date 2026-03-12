@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.11.0...v1.11.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* error handling of aio write wait and add test cli ([#92](https://github.com/kosolabs/swift-lib-ssh/issues/92)) ([e33f0bb](https://github.com/kosolabs/swift-lib-ssh/commit/e33f0bb27fbf9610989c79aa9900e06512137ef8))
+
 ## [1.11.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.10.0...v1.11.0) (2026-02-25)
 
 
