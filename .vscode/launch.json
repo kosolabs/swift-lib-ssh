@@ -19,6 +19,26 @@
       "target": "swift-ssh",
       "configuration": "release",
       "preLaunchTask": "swift: Build Release swift-ssh"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:swift-lib-ssh}",
+      "name": "Debug SwiftSSH",
+      "target": "SwiftSSH",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug SwiftSSH"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:swift-lib-ssh}",
+      "name": "Release SwiftSSH",
+      "target": "SwiftSSH",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release SwiftSSH"
     }
   ]
 }
