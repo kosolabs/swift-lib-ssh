@@ -1,9 +1,5 @@
 import Foundation
 
-public enum SFTPAioContext: Error {
-  case flushFailed
-}
-
 public struct SFTPAioReadContext: Sendable {
   private let session: SSHSession
   private let id: SFTPAioID
@@ -31,12 +27,7 @@ public struct SFTPAioWriteContext: Sendable {
     self.length = length
   }
 
-  @discardableResult
-  func flush() async throws -> Int {
-    let bytesWritten = try await session.waitWrite(id: id)
-    if bytesWritten != length {
-      throw SFTPAioContext.flushFailed
-    }
-    return bytesWritten
+  func flush() async throws {
+    try await session.waitWrite(id: id)
   }
 }
