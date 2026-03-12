@@ -647,20 +647,18 @@ final actor SSHSession {
   func beginRead(id: SFTPFileID, length: Int) throws -> SFTPAioReadContext {
     let aioId = SFTPAioID(fileId: id)
     let file = try file(id: id)
-    let sftp = try sftp(id: id.sftpId)
     let aio = UnsafeMutablePointer<sftp_aio?>.allocate(capacity: 1)
     files[id]?.aios[aioId] = aio
 
     let bytesToRead = sftp_aio_begin_read(file, length, aio)
     if bytesToRead < 0 {
-      try validate(bytesToRead, sftp: sftp)
+      try validate(bytesToRead, sftp: sftp(id: id.sftpId))
     }
 
     return SFTPAioReadContext(session: self, id: aioId, length: length)
   }
 
   func waitRead(id: SFTPAioID, into buffer: inout Data, length: Int) throws -> Int {
-    let sftp = try sftp(id: id.fileId.sftpId)
     let bytesRead = try withFreeingAio(id: id) { aio in
       buffer.withUnsafeMutableBytes({ raw in
         sftp_aio_wait_read(aio, raw.baseAddress, length)
@@ -668,7 +666,7 @@ final actor SSHSession {
     }
 
     if bytesRead < 0 {
-      try validate(bytesRead, sftp: sftp)
+      try validate(bytesRead, sftp: sftp(id: id.fileId.sftpId))
     }
 
     return bytesRead
@@ -692,9 +690,13 @@ final actor SSHSession {
     return SFTPAioWriteContext(session: self, id: aioId, length: bytesToWrite)
   }
 
-  func waitWrite(id: SFTPAioID) throws -> Int {
-    try withFreeingAio(id: id) { aio in
+  func waitWrite(id: SFTPAioID) throws {
+    let bytesWritten = try withFreeingAio(id: id) { aio in
       sftp_aio_wait_write(aio)
+    }
+
+    if bytesWritten < 0 {
+      try validate(bytesWritten, sftp: sftp(id: id.fileId.sftpId))
     }
   }
 }
