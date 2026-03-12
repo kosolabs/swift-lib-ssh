@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.11.1...v1.11.2) (2026-03-12)
+
+
+### Bug Fixes
+
+* remove test CLI from external products ([#94](https://github.com/kosolabs/swift-lib-ssh/issues/94)) ([c8fbc1a](https://github.com/kosolabs/swift-lib-ssh/commit/c8fbc1a5a80b0b90411cbf61c78f9b6a3b092925))
+
 ## [1.11.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.11.0...v1.11.1) (2026-03-12)
 
 
