@@ -10,11 +10,7 @@ let package = Package(
     .library(
       name: "SwiftLibSSH",
       targets: ["SwiftLibSSH"]
-    ),
-    .executable(
-      name: "swift-ssh",
-      targets: ["SwiftSSH"]
-    ),
+    )
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0")
