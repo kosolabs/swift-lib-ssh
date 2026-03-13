@@ -4,17 +4,17 @@ public class SFTPReader: AsyncSequence {
   private let file: SFTPFile
   private let offset: UInt64
   private let length: UInt64
-  private let readBufferSize: Int
+  private let bufferSize: UInt64
 
-  init(file: SFTPFile, offset: UInt64, length: UInt64, readBufferSize: Int) {
+  init(file: SFTPFile, offset: UInt64, length: UInt64, bufferSize: UInt64) {
     self.file = file
     self.offset = offset
     self.length = length
-    self.readBufferSize = readBufferSize
+    self.bufferSize = bufferSize
   }
 
   public func makeAsyncIterator() -> Iterator {
-    Iterator(file: file, offset: offset, length: length, readBufferSize: readBufferSize)
+    Iterator(file: file, offset: offset, length: length, bufferSize: bufferSize)
   }
 
   public class Iterator: AsyncIteratorProtocol {
@@ -23,17 +23,17 @@ public class SFTPReader: AsyncSequence {
     private let file: SFTPFile
     private let offset: UInt64
     private let length: UInt64
-    private let readBufferSize: Int
+    private let bufferSize: UInt64
 
     private var count: UInt64 = 0
-    private lazy var buffer: Data = Data(count: readBufferSize)
+    private lazy var buffer: Data = Data(count: Int(bufferSize))
     private var queue: [SFTPAioReadContext] = []
 
-    init(file: SFTPFile, offset: UInt64, length: UInt64, readBufferSize: Int) {
+    init(file: SFTPFile, offset: UInt64, length: UInt64, bufferSize: UInt64) {
       self.file = file
       self.offset = offset
       self.length = length
-      self.readBufferSize = readBufferSize
+      self.bufferSize = bufferSize
     }
 
     public func next() async throws -> Data? {
@@ -46,7 +46,7 @@ public class SFTPReader: AsyncSequence {
       }
 
       while queue.count < Iterator.QueueSize && count < length {
-        let size = Swift.min(UInt64(readBufferSize), length - count)
+        let size = Swift.min(bufferSize, length - count)
         let aio = try await file.beginRead(length: Int(size))
         count += size
         queue.append(aio)
@@ -91,14 +91,12 @@ public class SFTPWriter {
 public struct SFTPFile: Sendable {
   private let session: SSHSession
   private let id: SFTPFileID
-  let readBufferSize: Int
-  let writeBufferSize: Int
+  private let limits: SFTPLimits
 
-  init(session: SSHSession, id: SFTPFileID, readBufferSize: Int, writeBufferSize: Int) {
+  init(session: SSHSession, id: SFTPFileID, limits: SFTPLimits) {
     self.session = session
     self.id = id
-    self.readBufferSize = readBufferSize
-    self.writeBufferSize = writeBufferSize
+    self.limits = limits
   }
 
   public func close() async {
@@ -113,12 +111,16 @@ public struct SFTPFile: Sendable {
     try await session.seekFile(id: id, offset: offset)
   }
 
-  public func read(offset: UInt64 = 0, length: UInt64 = UInt64.max) async throws -> Data {
+  public func read(
+    offset: UInt64 = 0, length: UInt64 = UInt64.max,
+    bufferSize: UInt64 = SFTPClient.defaultBufferSize
+  ) async throws -> Data {
+    let bufferSize = min(bufferSize, limits.maxReadLength)
     try await seek(offset: offset)
     var result = Data()
-    var buffer = Data(count: readBufferSize)
+    var buffer = Data(count: Int(bufferSize))
     while result.count < length {
-      let bytesToRead = Int(min(UInt64(readBufferSize), length - UInt64(result.count)))
+      let bytesToRead = Int(min(bufferSize, length - UInt64(result.count)))
       let bytesRead = try await session.readFile(id: id, into: &buffer, length: bytesToRead)
       guard bytesRead > 0 else { break }
       result.append(buffer.prefix(bytesRead))
@@ -126,9 +128,12 @@ public struct SFTPFile: Sendable {
     return result
   }
 
-  public func write(data: Data) async throws {
-    for curr in stride(from: 0, to: data.count, by: writeBufferSize) {
-      let next = min(data.count, curr + writeBufferSize)
+  public func write(
+    data: Data, bufferSize: UInt64 = SFTPClient.defaultBufferSize
+  ) async throws {
+    let bufferSize = Int(min(bufferSize, limits.maxWriteLength))
+    for curr in stride(from: 0, to: data.count, by: bufferSize) {
+      let next = min(data.count, curr + bufferSize)
       let buffer = data.subdata(in: curr..<next)
       let bytesWritten = try await session.writeFile(id: id, data: buffer)
       if bytesWritten != buffer.count {
@@ -143,8 +148,12 @@ public struct SFTPFile: Sendable {
     try await session.beginRead(id: id, length: length)
   }
 
-  public func stream(offset: UInt64 = 0, length: UInt64 = UInt64.max) -> SFTPReader {
-    return SFTPReader(file: self, offset: offset, length: length, readBufferSize: readBufferSize)
+  public func stream(
+    offset: UInt64 = 0, length: UInt64 = UInt64.max,
+    bufferSize: UInt64 = SFTPClient.defaultBufferSize
+  ) -> SFTPReader {
+    let bufferSize = min(bufferSize, limits.maxReadLength)
+    return SFTPReader(file: self, offset: offset, length: length, bufferSize: bufferSize)
   }
 
   func beginWrite(data: Data) async throws -> SFTPAioWriteContext {
@@ -160,9 +169,10 @@ public struct SFTPFile: Sendable {
   }
 
   public func download(
-    to localURL: URL,
+    to localURL: URL, bufferSize: UInt64 = SFTPClient.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
+    let bufferSize = min(bufferSize, limits.maxReadLength)
     if !FileManager.default.createFile(atPath: localURL.path, contents: nil) {
       throw SSHError.invalidState(message: "Failed to create local file at \(localURL)")
     }
@@ -173,7 +183,7 @@ public struct SFTPFile: Sendable {
     defer { try? fp.close() }
 
     var count: UInt64 = 0
-    for try await data in stream() {
+    for try await data in stream(bufferSize: bufferSize) {
       try fp.write(contentsOf: data)
       count += UInt64(data.count)
       progress?(count)
@@ -181,9 +191,10 @@ public struct SFTPFile: Sendable {
   }
 
   public func upload(
-    from localURL: URL, mode: mode_t = 0,
+    from localURL: URL, bufferSize: UInt64 = SFTPClient.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
+    let bufferSize = Int(min(bufferSize, limits.maxWriteLength))
     guard let fp = try? FileHandle(forReadingFrom: localURL) else {
       throw SSHError.invalidState(message: "Failed to open local file for reading at \(localURL)")
     }
@@ -191,7 +202,7 @@ public struct SFTPFile: Sendable {
 
     var count: UInt64 = 0
     try await withAsyncWriter { writer in
-      while let data = try fp.read(upToCount: writeBufferSize) {
+      while let data = try fp.read(upToCount: bufferSize) {
         try await writer.write(data: data)
         count += UInt64(data.count)
         progress?(count)

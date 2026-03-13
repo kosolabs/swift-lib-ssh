@@ -1,7 +1,7 @@
 import Foundation
 
 public struct SFTPClient: Sendable {
-  public static let defaultBufferSize: Int = 102400
+  public static let defaultBufferSize: UInt64 = 102400
 
   private let session: SSHSession
   private let id: SFTPClientID
@@ -66,39 +66,30 @@ public struct SFTPClient: Sendable {
 
   public func withSftpFile<T: Sendable>(
     atPath path: String, accessType: AccessType, mode: mode_t = 0,
-    readBufferSize: Int = SFTPClient.defaultBufferSize,
-    writeBufferSize: Int = SFTPClient.defaultBufferSize,
     perform: @Sendable (SFTPFile) async throws -> T
   ) async throws -> T {
     try await session.withSftpFile(
-      id: id, path: path, accessType: accessType, mode: mode,
-      readBufferSize: min(readBufferSize, Int(limits.maxReadLength)),
-      writeBufferSize: min(writeBufferSize, Int(limits.maxWriteLength)),
-      perform: perform
+      id: id, path: path, accessType: accessType, mode: mode, limits: limits, perform: perform
     )
   }
 
   public func download(
     from remotePath: String, to localURL: URL,
-    readBufferSize: Int = SFTPClient.defaultBufferSize,
+    bufferSize: UInt64 = SFTPClient.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
-    try await withSftpFile(
-      atPath: remotePath, accessType: .readOnly, readBufferSize: readBufferSize
-    ) { file in
-      try await file.download(to: localURL, progress: progress)
+    try await withSftpFile(atPath: remotePath, accessType: .readOnly) { file in
+      try await file.download(to: localURL, bufferSize: bufferSize, progress: progress)
     }
   }
 
   public func upload(
     from localURL: URL, to remotePath: String, mode: mode_t = 0,
-    writeBufferSize: Int = SFTPClient.defaultBufferSize,
+    bufferSize: UInt64 = SFTPClient.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
-    try await withSftpFile(
-      atPath: remotePath, accessType: .writeOnly, mode: mode, writeBufferSize: writeBufferSize
-    ) { file in
-      try await file.upload(from: localURL, mode: mode, progress: progress)
+    try await withSftpFile(atPath: remotePath, accessType: .writeOnly, mode: mode) { file in
+      try await file.upload(from: localURL, bufferSize: bufferSize, progress: progress)
     }
   }
 }

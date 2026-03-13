@@ -43,7 +43,7 @@ struct SSHConfig: ParsableArguments {
 struct SwiftSSH: AsyncParsableCommand {
   static let configuration = CommandConfiguration(
     abstract: "SwiftLibSSH CLI test tool",
-    subcommands: [Upload.self]
+    subcommands: [Upload.self, Download.self]
   )
 }
 
@@ -54,31 +54,65 @@ struct Upload: AsyncParsableCommand {
 
   @OptionGroup var sshConfig: SSHConfig
 
-  @Argument(help: "Source path")
-  var source: String
+  @Argument(help: "Local source file path")
+  var src: String
 
-  @Argument(help: "Destination path")
-  var destination: String
+  @Argument(help: "Remote destination file path")
+  var dst: String
 
   @Option(help: "Permissions")
   var mode: mode_t = 0o644
 
+  @Option(help: "Buffer size")
+  var bufferSize: UInt64 = SFTPClient.defaultBufferSize
+
   func run() async throws {
     try await sshConfig.withConnection { ssh, sftp in
-      let fp = try FileHandle(forReadingFrom: URL(filePath: source))
+      let fp = try FileHandle(forReadingFrom: URL(filePath: src))
       let speedometer = Speedometer(total: try fp.seekToEnd())
       try fp.seek(toOffset: 0)
 
-      try await sftp.withSftpFile(atPath: destination, accessType: .writeOnly, mode: mode) { file in
-        try await file.withAsyncWriter { writer in
-          while let data = try fp.read(upToCount: 102400) {
-            try await writer.write(data: data)
-            if let progress = speedometer.update(delta: data.count) {
-              print("Uploading \(source): \(progress)")
-            }
+      try await sftp.withSftpFile(atPath: dst, accessType: .writeOnly, mode: mode) { file in
+        try await file.upload(from: URL(filePath: src), bufferSize: bufferSize) { completed in
+          if let progress = speedometer.update(completed: Int(completed)) {
+            print("Uploading from \(src) to \(dst): \(progress)")
           }
         }
       }
+      print("Uploaded \(src) to \(dst): \(speedometer.finalize())")
+    }
+  }
+}
+
+struct Download: AsyncParsableCommand {
+  static let configuration = CommandConfiguration(
+    abstract: "Download a file"
+  )
+
+  @OptionGroup var sshConfig: SSHConfig
+
+  @Argument(help: "Remote source file path")
+  var src: String
+
+  @Argument(help: "Local destination file path")
+  var dst: String
+
+  @Option(help: "Buffer size")
+  var bufferSize: UInt64 = SFTPClient.defaultBufferSize
+
+  func run() async throws {
+    try await sshConfig.withConnection { ssh, sftp in
+      let attrs = try await sftp.attributes(atPath: src)
+      let speedometer = Speedometer(total: attrs.size)
+
+      try await sftp.withSftpFile(atPath: src, accessType: .readOnly) { file in
+        try await file.download(to: URL(filePath: dst), bufferSize: bufferSize) { completed in
+          if let progress = speedometer.update(completed: Int(completed)) {
+            print("Downloading from \(src) to \(dst): \(progress)")
+          }
+        }
+      }
+      print("Downloaded from \(src) to \(dst): \(speedometer.finalize())")
     }
   }
 }
