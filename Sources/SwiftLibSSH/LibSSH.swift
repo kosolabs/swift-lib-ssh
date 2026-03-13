@@ -506,29 +506,26 @@ final actor SSHSession {
 
   func withSftpFile<T: Sendable>(
     _id: SFTPFileID? = nil,
-    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0,
-    readBufferSize: Int, writeBufferSize: Int,
+    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0, limits: SFTPLimits,
     perform body: (SFTPFile) async throws -> T
   ) async throws -> T {
     let _id = _id ?? SFTPFileID(sftpId: id)
     let file = try openFile(
-      _id: _id, id: id, path: path, accessType: accessType, mode: mode,
-      readBufferSize: readBufferSize, writeBufferSize: writeBufferSize)
+      _id: _id, id: id, path: path, accessType: accessType, mode: mode, limits: limits
+    )
     defer { closeFile(id: _id) }
     return try await body(file)
   }
 
   func openFile(
     _id: SFTPFileID? = nil,
-    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0,
-    readBufferSize: Int, writeBufferSize: Int
+    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0, limits: SFTPLimits
   ) throws -> SFTPFile {
     let _id = _id ?? SFTPFileID(sftpId: id)
     let sftp = try sftp(id: id)
     let sftpFile = try validate(sftp_open(sftp, path, accessType.raw(), mode), sftp: sftp)
     files[_id] = TrackedFile(file: sftpFile)
-    return SFTPFile(
-      session: self, id: _id, readBufferSize: readBufferSize, writeBufferSize: writeBufferSize)
+    return SFTPFile(session: self, id: _id, limits: limits)
   }
 
   func closeFile(id: SFTPFileID) {

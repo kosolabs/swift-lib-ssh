@@ -22,6 +22,11 @@ struct Speedometer: Sendable, ~Copyable {
     self.progress.fileCompletedCount = 0
   }
 
+  func update(completed: Int) -> String? {
+    let delta = completed - Int(self.progress.completedUnitCount)
+    return update(delta: delta)
+  }
+
   func update(delta: Int) -> String? {
     self.pending.add(delta, ordering: .relaxed)
     self.progress.completedUnitCount += Int64(delta)
