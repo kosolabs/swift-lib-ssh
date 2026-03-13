@@ -4,15 +4,17 @@ public class SFTPReader: AsyncSequence {
   private let file: SFTPFile
   private let offset: UInt64
   private let length: UInt64
+  private let readBufferSize: Int
 
-  init(file: SFTPFile, offset: UInt64, length: UInt64) {
+  init(file: SFTPFile, offset: UInt64, length: UInt64, readBufferSize: Int) {
     self.file = file
     self.offset = offset
     self.length = length
+    self.readBufferSize = readBufferSize
   }
 
   public func makeAsyncIterator() -> Iterator {
-    Iterator(file: file, offset: offset, length: length)
+    Iterator(file: file, offset: offset, length: length, readBufferSize: readBufferSize)
   }
 
   public class Iterator: AsyncIteratorProtocol {
@@ -21,15 +23,17 @@ public class SFTPReader: AsyncSequence {
     private let file: SFTPFile
     private let offset: UInt64
     private let length: UInt64
+    private let readBufferSize: Int
 
     private var count: UInt64 = 0
-    private var buffer: Data = Data(count: SSHSession.BufferSize)
+    private lazy var buffer: Data = Data(count: readBufferSize)
     private var queue: [SFTPAioReadContext] = []
 
-    init(file: SFTPFile, offset: UInt64, length: UInt64) {
+    init(file: SFTPFile, offset: UInt64, length: UInt64, readBufferSize: Int) {
       self.file = file
       self.offset = offset
       self.length = length
+      self.readBufferSize = readBufferSize
     }
 
     public func next() async throws -> Data? {
@@ -42,7 +46,7 @@ public class SFTPReader: AsyncSequence {
       }
 
       while queue.count < Iterator.QueueSize && count < length {
-        let size = Swift.min(UInt64(buffer.count), length - count)
+        let size = Swift.min(UInt64(readBufferSize), length - count)
         let aio = try await file.beginRead(length: Int(size))
         count += size
         queue.append(aio)
@@ -87,10 +91,14 @@ public class SFTPWriter {
 public struct SFTPFile: Sendable {
   private let session: SSHSession
   private let id: SFTPFileID
+  let readBufferSize: Int
+  let writeBufferSize: Int
 
-  init(session: SSHSession, id: SFTPFileID) {
+  init(session: SSHSession, id: SFTPFileID, readBufferSize: Int, writeBufferSize: Int) {
     self.session = session
     self.id = id
+    self.readBufferSize = readBufferSize
+    self.writeBufferSize = writeBufferSize
   }
 
   public func close() async {
@@ -108,9 +116,9 @@ public struct SFTPFile: Sendable {
   public func read(offset: UInt64 = 0, length: UInt64 = UInt64.max) async throws -> Data {
     try await seek(offset: offset)
     var result = Data()
-    var buffer = Data(count: SSHSession.BufferSize)
+    var buffer = Data(count: readBufferSize)
     while result.count < length {
-      let bytesToRead = Int(min(UInt64(SSHSession.BufferSize), length - UInt64(result.count)))
+      let bytesToRead = Int(min(UInt64(readBufferSize), length - UInt64(result.count)))
       let bytesRead = try await session.readFile(id: id, into: &buffer, length: bytesToRead)
       guard bytesRead > 0 else { break }
       result.append(buffer.prefix(bytesRead))
@@ -119,8 +127,8 @@ public struct SFTPFile: Sendable {
   }
 
   public func write(data: Data) async throws {
-    for curr in stride(from: 0, to: data.count, by: SSHSession.BufferSize) {
-      let next = min(data.count, curr + SSHSession.BufferSize)
+    for curr in stride(from: 0, to: data.count, by: writeBufferSize) {
+      let next = min(data.count, curr + writeBufferSize)
       let buffer = data.subdata(in: curr..<next)
       let bytesWritten = try await session.writeFile(id: id, data: buffer)
       if bytesWritten != buffer.count {
@@ -136,7 +144,7 @@ public struct SFTPFile: Sendable {
   }
 
   public func stream(offset: UInt64 = 0, length: UInt64 = UInt64.max) -> SFTPReader {
-    return SFTPReader(file: self, offset: offset, length: length)
+    return SFTPReader(file: self, offset: offset, length: length, readBufferSize: readBufferSize)
   }
 
   func beginWrite(data: Data) async throws -> SFTPAioWriteContext {
@@ -183,7 +191,7 @@ public struct SFTPFile: Sendable {
 
     var count: UInt64 = 0
     try await withAsyncWriter { writer in
-      while let data = try fp.read(upToCount: SSHSession.BufferSize) {
+      while let data = try fp.read(upToCount: writeBufferSize) {
         try await writer.write(data: data)
         count += UInt64(data.count)
         progress?(count)

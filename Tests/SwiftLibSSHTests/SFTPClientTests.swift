@@ -324,11 +324,10 @@ struct SFTPClientTests {
     @Test func limitsSucceeds() async throws {
       try await withAuthenticatedClient { ssh in
         try await ssh.withSftp(perform: { sftp in
-          let limits = try await sftp.limits()
-          #expect(limits.maxOpenHandles > 0)
-          #expect(limits.maxPacketLength > 0)
-          #expect(limits.maxReadLength > 0)
-          #expect(limits.maxWriteLength > 0)
+          #expect(sftp.limits.maxOpenHandles > 0)
+          #expect(sftp.limits.maxPacketLength > 0)
+          #expect(sftp.limits.maxReadLength > 0)
+          #expect(sftp.limits.maxWriteLength > 0)
         })
       }
     }
