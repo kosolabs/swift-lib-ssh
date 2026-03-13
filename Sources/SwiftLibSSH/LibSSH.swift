@@ -672,13 +672,14 @@ final actor SSHSession {
     return bytesRead
   }
 
-  func beginWrite(id: SFTPFileID, buffer: Data, length: Int) throws -> SFTPAioWriteContext {
+  func beginWrite(id: SFTPFileID, buffer: Data) throws -> SFTPAioWriteContext {
     let aioId = SFTPAioID(fileId: id)
     let file = try file(id: id)
     let sftp = try sftp(id: id.sftpId)
     let aio = UnsafeMutablePointer<sftp_aio?>.allocate(capacity: 1)
     files[id]?.aios[aioId] = aio
 
+    let length = buffer.count
     let bytesToWrite = buffer.withUnsafeBytes({ raw in
       sftp_aio_begin_write(file, raw.baseAddress, length, aio)
     })

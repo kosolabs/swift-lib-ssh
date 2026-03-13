@@ -140,7 +140,7 @@ public struct SFTPFile: Sendable {
   }
 
   func beginWrite(data: Data) async throws -> SFTPAioWriteContext {
-    try await session.beginWrite(id: id, buffer: data, length: data.count)
+    try await session.beginWrite(id: id, buffer: data)
   }
 
   public func withAsyncWriter(
