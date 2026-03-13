@@ -364,10 +364,38 @@ struct SFTPClientTests {
         #expect(actual == expected)
       }
     }
+
+    @Test func downloadWith1MBBufferSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/dl-1mb-buf-test.dat"
+
+        let destURL = FileManager
+          .default
+          .temporaryDirectory
+          .appendingPathComponent("dl-1mb-buf-test.dat")
+
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
+        let expected = try await ssh.md5(ofFile: srcPath)
+
+        try await ssh.withSftp { sftp in
+          let attrs = try await sftp.attributes(atPath: srcPath)
+          let transferred = Atomic<UInt64>(0)
+
+          try await sftp.download(from: srcPath, to: destURL, bufferSize: 1_048_576) { progress in
+            transferred.store(progress, ordering: .relaxed)
+          }
+
+          #expect(transferred.load(ordering: .relaxed) == attrs.size)
+        }
+
+        let actual = try md5(ofFile: destURL.path)
+        #expect(actual == expected)
+      }
+    }
   }
 
   struct Upload {
-    @Test func testUploadSucceeds() async throws {
+    @Test func uploadSucceeds() async throws {
       try await withAuthenticatedClient { ssh in
         let srcURL = FileManager
           .default
@@ -389,6 +417,36 @@ struct SFTPClientTests {
             }
           }
           print("Upload: \(metrics(size: size, duration: elapsed))")
+
+          #expect(transferred.load(ordering: .relaxed) == size)
+        }
+
+        try await Task.sleep(for: .seconds(1))
+        let actual = try await ssh.md5(ofFile: destPath)
+        #expect(actual == expected)
+      }
+    }
+
+    @Test func uploadWith1MBBufferSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcURL = FileManager
+          .default
+          .temporaryDirectory
+          .appendingPathComponent("ul-1mb-buf-test.dat")
+
+        let destPath = "/tmp/ul-1mb-buf-test.dat"
+
+        try shell("dd if=/dev/urandom of=\(srcURL.path) bs=1M count=1")
+        let expected = try md5(ofFile: srcURL.path)
+
+        try await ssh.withSftp { sftp in
+          let size = try FileManager.default.attributesOfItem(atPath: srcURL.path)[.size] as! UInt64
+          let transferred = Atomic<UInt64>(0)
+
+          try await sftp.upload(from: srcURL, to: destPath, mode: 0o644, bufferSize: 1_048_576) {
+            progress in
+            transferred.store(progress, ordering: .relaxed)
+          }
 
           #expect(transferred.load(ordering: .relaxed) == size)
         }
