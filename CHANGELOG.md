@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.11.2...v1.12.0) (2026-03-13)
+
+
+### Features
+
+* allow user to specify read/write buffer sizes clamped to server limits ([#98](https://github.com/kosolabs/swift-lib-ssh/issues/98)) ([17db9e8](https://github.com/kosolabs/swift-lib-ssh/commit/17db9e893d756e36fe409ade146d02b66de9911f))
+
+
+### Bug Fixes
+
+* tweak timeouts so that transfers don't fail ([#96](https://github.com/kosolabs/swift-lib-ssh/issues/96)) ([0b5ae34](https://github.com/kosolabs/swift-lib-ssh/commit/0b5ae3421c1a28f0f13a4e35ad1c49551dfff450))
+
 ## [1.11.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.11.1...v1.11.2) (2026-03-12)
 
 
