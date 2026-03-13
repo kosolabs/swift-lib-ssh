@@ -149,8 +149,6 @@ public enum SSHError: Error, Sendable, Equatable {
 }
 
 final actor SSHSession {
-  static let BufferSize = 102400
-
   private var session: ssh_session?
   private var keys: [SSHKeyID: ssh_key] = [:]
   private var channels: [SSHChannelID: ssh_channel] = [:]
@@ -401,7 +399,8 @@ final actor SSHSession {
     }
     try validate(sftp_init(sftp))
     sftps[_id] = sftp
-    return SFTPClient(session: self, id: _id)
+    let limits = try limits(id: _id)
+    return SFTPClient(session: self, id: _id, limits: limits)
   }
 
   func freeSftp(id: SFTPClientID) {
@@ -508,23 +507,28 @@ final actor SSHSession {
   func withSftpFile<T: Sendable>(
     _id: SFTPFileID? = nil,
     id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0,
+    readBufferSize: Int, writeBufferSize: Int,
     perform body: (SFTPFile) async throws -> T
   ) async throws -> T {
     let _id = _id ?? SFTPFileID(sftpId: id)
-    let file = try openFile(_id: _id, id: id, path: path, accessType: accessType, mode: mode)
+    let file = try openFile(
+      _id: _id, id: id, path: path, accessType: accessType, mode: mode,
+      readBufferSize: readBufferSize, writeBufferSize: writeBufferSize)
     defer { closeFile(id: _id) }
     return try await body(file)
   }
 
   func openFile(
     _id: SFTPFileID? = nil,
-    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0
+    id: SFTPClientID, path: String, accessType: AccessType, mode: mode_t = 0,
+    readBufferSize: Int, writeBufferSize: Int
   ) throws -> SFTPFile {
     let _id = _id ?? SFTPFileID(sftpId: id)
     let sftp = try sftp(id: id)
     let sftpFile = try validate(sftp_open(sftp, path, accessType.raw(), mode), sftp: sftp)
     files[_id] = TrackedFile(file: sftpFile)
-    return SFTPFile(session: self, id: _id)
+    return SFTPFile(
+      session: self, id: _id, readBufferSize: readBufferSize, writeBufferSize: writeBufferSize)
   }
 
   func closeFile(id: SFTPFileID) {
