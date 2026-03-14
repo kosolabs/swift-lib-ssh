@@ -64,7 +64,7 @@ struct Upload: AsyncParsableCommand {
   var mode: mode_t = 0o644
 
   @Option(help: "Buffer size")
-  var bufferSize: UInt64 = SFTPClient.defaultBufferSize
+  var bufferSize: UInt64 = SFTPLimits.defaultBufferSize
 
   func run() async throws {
     try await sshConfig.withConnection { ssh, sftp in
@@ -98,7 +98,7 @@ struct Download: AsyncParsableCommand {
   var dst: String
 
   @Option(help: "Buffer size")
-  var bufferSize: UInt64 = SFTPClient.defaultBufferSize
+  var bufferSize: UInt64 = SFTPLimits.defaultBufferSize
 
   func run() async throws {
     try await sshConfig.withConnection { ssh, sftp in
