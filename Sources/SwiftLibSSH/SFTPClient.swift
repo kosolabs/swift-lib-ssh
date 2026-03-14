@@ -1,8 +1,6 @@
 import Foundation
 
 public struct SFTPClient: Sendable {
-  public static let defaultBufferSize: UInt64 = 102400
-
   private let session: SSHSession
   private let id: SFTPClientID
   public let limits: SFTPLimits
@@ -75,7 +73,7 @@ public struct SFTPClient: Sendable {
 
   public func download(
     from remotePath: String, to localURL: URL,
-    bufferSize: UInt64 = SFTPClient.defaultBufferSize,
+    bufferSize: UInt64 = SFTPLimits.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
     try await withSftpFile(atPath: remotePath, accessType: .readOnly) { file in
@@ -85,7 +83,7 @@ public struct SFTPClient: Sendable {
 
   public func upload(
     from localURL: URL, to remotePath: String, mode: mode_t = 0,
-    bufferSize: UInt64 = SFTPClient.defaultBufferSize,
+    bufferSize: UInt64 = SFTPLimits.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
     try await withSftpFile(atPath: remotePath, accessType: .writeOnly, mode: mode) { file in
