@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.12.1...v1.12.2) (2026-03-14)
+
+
+### Bug Fixes
+
+* expose fields in SFTPLimits ([#102](https://github.com/kosolabs/swift-lib-ssh/issues/102)) ([d8555c0](https://github.com/kosolabs/swift-lib-ssh/commit/d8555c02456794baf8487fde9b3b516fd0904d2a))
+
 ## [1.12.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.12.0...v1.12.1) (2026-03-13)
 
 
