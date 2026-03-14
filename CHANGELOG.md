@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.12.0...v1.12.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* tidy up buffer size implementation ([#99](https://github.com/kosolabs/swift-lib-ssh/issues/99)) ([4e172e1](https://github.com/kosolabs/swift-lib-ssh/commit/4e172e15850477855a067525d3a4bfbb1a65aed9))
+
 ## [1.12.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.11.2...v1.12.0) (2026-03-13)
 
 
