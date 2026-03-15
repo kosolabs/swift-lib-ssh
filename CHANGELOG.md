@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.12.2...v1.13.0) (2026-03-15)
+
+
+### Features
+
+* add function to recursively remove a directory ([#104](https://github.com/kosolabs/swift-lib-ssh/issues/104)) ([ad77c3c](https://github.com/kosolabs/swift-lib-ssh/commit/ad77c3c5194bdae55f8f6d8f5c44f44c88fbe1e0))
+
 ## [1.12.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.12.1...v1.12.2) (2026-03-14)
 
 
