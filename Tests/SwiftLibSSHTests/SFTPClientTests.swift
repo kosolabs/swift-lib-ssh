@@ -281,6 +281,71 @@ struct SFTPClientTests {
     }
   }
 
+  struct RemoveDirectoryRecursively {
+    @Test func removeEmptyDirectorySucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/test-remove-recursive-empty"
+        try await ssh.execute("rm -rf \(path) && mkdir \(path)")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.removeDirectoryRecursively(atPath: path)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try? await sftp.attributes(atPath: path)
+        }
+        #expect(attrs == nil)
+      }
+    }
+
+    @Test func removeDirectoryWithFilesSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/test-remove-recursive-files"
+        try await ssh.execute(
+          "rm -rf \(path) && mkdir \(path) && touch \(path)/a.txt \(path)/b.txt")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.removeDirectoryRecursively(atPath: path)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try? await sftp.attributes(atPath: path)
+        }
+        #expect(attrs == nil)
+      }
+    }
+
+    @Test func removeNestedDirectorySucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/test-remove-recursive-nested"
+        try await ssh.execute(
+          "rm -rf \(path) && mkdir -p \(path)/sub1/sub2 && touch \(path)/sub1/sub2/file.txt \(path)/sub1/other.txt \(path)/root.txt"
+        )
+
+        try await ssh.withSftp { sftp in
+          try await sftp.removeDirectoryRecursively(atPath: path)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try? await sftp.attributes(atPath: path)
+        }
+        #expect(attrs == nil)
+      }
+    }
+
+    @Test func removeMissingDirectoryThrowsNoSuchFile() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          try await ssh.withSftp { sftp in
+            try await sftp.removeDirectoryRecursively(atPath: "/tmp/missing-recursive")
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .noSuchFile
+      }
+    }
+  }
+
   struct IterateDirectory {
     @Test func iterateDirectorySucceeds() async throws {
       try await withAuthenticatedClient { ssh in

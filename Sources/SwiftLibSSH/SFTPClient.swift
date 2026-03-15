@@ -23,6 +23,21 @@ public struct SFTPClient: Sendable {
     try await session.rmdir(id: id, atPath: path)
   }
 
+  public func removeDirectoryRecursively(atPath path: String) async throws {
+    try await withDirectory(atPath: path) { directory in
+      for try await entry in directory {
+        guard let name = entry.name else { continue }
+        let entryPath = path + "/" + name
+        if entry.type == .directory {
+          try await removeDirectoryRecursively(atPath: entryPath)
+        } else {
+          try await removeFile(atPath: entryPath)
+        }
+      }
+    }
+    try await removeDirectory(atPath: path)
+  }
+
   public func withDirectory<T: Sendable>(
     atPath path: String, perform: @Sendable (SFTPDirectory) async throws -> T
   ) async throws -> T {
