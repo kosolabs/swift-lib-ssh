@@ -1,4 +1,4 @@
-public struct SSHExitStatus: Sendable {
+public struct SSHExitStatus: Codable, Sendable {
   let code: UInt8?
   let signal: String?
   let coreDumped: Bool
