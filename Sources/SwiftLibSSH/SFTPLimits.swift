@@ -1,7 +1,7 @@
 import CLibSSH
 import Foundation
 
-public struct SFTPLimits: Sendable {
+public struct SFTPLimits: Codable, Sendable {
   public static let defaultBufferSize: UInt64 = 102400
 
   public let maxOpenHandles: UInt64

@@ -1,8 +1,8 @@
 import CLibSSH
 import Foundation
 
-public struct SFTPAttributes: Sendable {
-  public enum `Type`: Sendable {
+public struct SFTPAttributes: Codable, Sendable {
+  public enum `Type`: Codable, Sendable {
     case regular
     case directory
     case symlink
