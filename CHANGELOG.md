@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.13.0...v1.14.0) (2026-04-22)
+
+
+### Features
+
+* add codable to data structs ([#111](https://github.com/kosolabs/swift-lib-ssh/issues/111)) ([4754bff](https://github.com/kosolabs/swift-lib-ssh/commit/4754bff04d1fe44f851f22e953c7244c73d5d0f8))
+
 ## [1.13.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.12.2...v1.13.0) (2026-03-15)
 
 
