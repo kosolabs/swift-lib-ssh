@@ -69,7 +69,7 @@ public struct SFTPAioID: Hashable, Sendable {
   }
 }
 
-public enum SFTPError: Error, Sendable, Equatable {
+public enum SFTPError: Codable, Error, Sendable, Equatable {
   case eof
   case noSuchFile
   case permissionDenied
@@ -104,7 +104,7 @@ public enum SFTPError: Error, Sendable, Equatable {
   }
 }
 
-public enum SSHError: Error, Sendable, Equatable {
+public enum SSHError: Codable, Error, Sendable, Equatable {
   case connectionFailed(message: String)
   case authenticationFailed(message: String)
   case sftpError(SFTPError, message: String)
