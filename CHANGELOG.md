@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.14.0...v1.15.0) (2026-04-24)
+
+
+### Features
+
+* add codable to error types ([#113](https://github.com/kosolabs/swift-lib-ssh/issues/113)) ([83eed11](https://github.com/kosolabs/swift-lib-ssh/commit/83eed11a5e9bde698846688fb136ae4e64648f1a))
+
 ## [1.14.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.13.0...v1.14.0) (2026-04-22)
 
 
