@@ -24,6 +24,43 @@ struct SFTPFileTests {
   }
 
   struct Read {
+    @Test func readRangeSmallSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/read-range-small-test.dat"
+
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1024 count=1")
+        let expected = try await ssh.md5(ofFile: srcPath)
+
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            try await file.read(range: 0..<1024).md5()
+          }
+        }
+
+        #expect(actual == expected)
+      }
+    }
+
+    @Test func readRangeSomeSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/read-range-some-test.dat"
+        let range = UInt64(153600)..<UInt64(307200)
+
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
+        let expected = try await ssh.md5(
+          ofFile: srcPath, offset: range.lowerBound,
+          length: range.upperBound - range.lowerBound)
+
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            try await file.read(range: range).md5()
+          }
+        }
+
+        #expect(actual == expected)
+      }
+    }
+
     @Test func readSmallSucceeds() async throws {
       try await withAuthenticatedClient { ssh in
         let srcPath = "/tmp/read-small-test.dat"
@@ -126,6 +163,51 @@ struct SFTPFileTests {
   }
 
   struct Stream {
+    @Test func streamRangeSmallSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/stream-range-small-test.dat"
+
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1024 count=1")
+        let expected = try await ssh.md5(ofFile: srcPath)
+
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            var result = Data()
+            for try await data in file.stream(range: 0..<1024) {
+              result.append(data)
+            }
+            return result.md5()
+          }
+        }
+
+        #expect(actual == expected)
+      }
+    }
+
+    @Test func streamRangeSomeSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let srcPath = "/tmp/stream-range-some-test.dat"
+        let range = UInt64(153600)..<UInt64(307200)
+
+        try await ssh.execute("dd if=/dev/urandom of=\(srcPath) bs=1M count=1")
+        let expected = try await ssh.md5(
+          ofFile: srcPath, offset: range.lowerBound,
+          length: range.upperBound - range.lowerBound)
+
+        let actual = try await ssh.withSftp { sftp in
+          try await sftp.withSftpFile(atPath: srcPath, accessType: .readOnly) { file in
+            var result = Data()
+            for try await data in file.stream(range: range) {
+              result.append(data)
+            }
+            return result.md5()
+          }
+        }
+
+        #expect(actual == expected)
+      }
+    }
+
     @Test func streamSmallSucceeds() async throws {
       try await withAuthenticatedClient { ssh in
         let srcPath = "/tmp/stream-small-test.dat"

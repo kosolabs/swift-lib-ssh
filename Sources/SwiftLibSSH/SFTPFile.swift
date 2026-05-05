@@ -112,6 +112,16 @@ public struct SFTPFile: Sendable {
   }
 
   public func read(
+    range: Range<UInt64>,
+    bufferSize: UInt64 = SFTPLimits.defaultBufferSize
+  ) async throws -> Data {
+    try await read(
+      offset: range.lowerBound, length: range.upperBound - range.lowerBound,
+      bufferSize: bufferSize
+    )
+  }
+
+  public func read(
     offset: UInt64 = 0, length: UInt64 = UInt64.max,
     bufferSize: UInt64 = SFTPLimits.defaultBufferSize
   ) async throws -> Data {
@@ -146,6 +156,18 @@ public struct SFTPFile: Sendable {
 
   func beginRead(length: Int) async throws -> SFTPAioReadContext {
     try await session.beginRead(id: id, length: length)
+  }
+
+  public func stream(
+    range: Range<UInt64>,
+    bufferSize: UInt64 = SFTPLimits.defaultBufferSize
+  ) -> SFTPReader {
+    let bufferSize = limits.readLength(for: bufferSize)
+    return SFTPReader(
+      file: self,
+      offset: range.lowerBound, length: range.upperBound - range.lowerBound,
+      bufferSize: bufferSize
+    )
   }
 
   public func stream(
