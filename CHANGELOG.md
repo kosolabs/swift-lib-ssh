@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.15.0...v1.16.0) (2026-05-05)
+
+
+### Features
+
+* add convenience functions to read or stream a range ([#116](https://github.com/kosolabs/swift-lib-ssh/issues/116)) ([cdae05f](https://github.com/kosolabs/swift-lib-ssh/commit/cdae05f8de5147e64e7bfb22f09e1318e062e85b))
+
 ## [1.15.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.14.0...v1.15.0) (2026-04-24)
 
 
