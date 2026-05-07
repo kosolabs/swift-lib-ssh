@@ -32,6 +32,13 @@ private var privateKey: URL {
   return URL(fileURLWithPath: env["SWIFT_LIBSSH_TEST_PRIVATE_KEY_PATH"] ?? "Tests/Data/id_ed25519")
 }
 
+private var publicKey: URL {
+  let env = ProcessInfo.processInfo.environment
+  return URL(
+    fileURLWithPath: env["SWIFT_LIBSSH_TEST_PUBLIC_KEY_PATH"] ?? "Tests/Data/id_ed25519.pub"
+  )
+}
+
 func client() async throws -> SSHClient {
   return try await SSHClient.connect(
     host: host, port: port, user: user, password: password)
@@ -121,6 +128,15 @@ struct SSHConnectTests {
     await #expect {
       try await SSHClient.connect(
         host: host, port: port, user: user, privateKeyURL: URL(filePath: "/tmp/missing_pk"))
+    } throws: { error in
+      (error as? SSHError)?.isAuthenticationFailed == true
+    }
+  }
+
+  @Test func invalidPrivateKeyThrowsAuthenticationFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(
+        host: host, port: port, user: user, privateKeyURL: publicKey)
     } throws: { error in
       (error as? SSHError)?.isAuthenticationFailed == true
     }
