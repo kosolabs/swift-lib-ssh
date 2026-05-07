@@ -193,7 +193,12 @@ final actor SSHSession {
       }
     }
 
-    throw SSHError.from(code: getErrorCode(), message: message)
+    let code = getErrorCode()
+    if code == 0 && message.isEmpty && !isConnected {
+      throw SSHError.connectionFailed(message: "Connection lost")
+    }
+
+    throw SSHError.from(code: code, message: message)
   }
 
   private func validate(_ code: Int, sftp: sftp_session? = nil) throws {
