@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.16.1...v1.16.2) (2026-05-07)
+
+
+### Bug Fixes
+
+* throw .authenticationFailed if we fail to import the private key ([#120](https://github.com/kosolabs/swift-lib-ssh/issues/120)) ([6dc393c](https://github.com/kosolabs/swift-lib-ssh/commit/6dc393cf5f736cd874c98fb89ff2fad39ffa7673))
+
 ## [1.16.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.16.0...v1.16.1) (2026-05-07)
 
 
