@@ -278,9 +278,7 @@ final actor SSHSession {
   ) throws -> SSHKey {
     var key: ssh_key?
     guard ssh_pki_import_privkey_file(file.path, passphrase, nil, nil, &key) == SSH_OK else {
-      throw SSHError.authenticationFailed(
-        message: "Failed to import private key from \(file.lastPathComponent)"
-      )
+      throw SSHError.authenticationFailed(message: "Failed to import private key")
     }
     keys[_id] = key!
     return SSHKey(session: self, id: _id)
@@ -299,8 +297,9 @@ final actor SSHSession {
     _id: SSHKeyID = SSHKeyID(), from base64: String, passphrase: String? = nil
   ) throws -> SSHKey {
     var key: ssh_key?
-    try validate(ssh_pki_import_privkey_base64(base64, passphrase, nil, nil, &key))
-
+    guard ssh_pki_import_privkey_base64(base64, passphrase, nil, nil, &key) == SSH_OK else {
+      throw SSHError.authenticationFailed(message: "Failed to import private key")
+    }
     keys[_id] = key!
     return SSHKey(session: self, id: _id)
   }

@@ -135,8 +135,15 @@ struct SSHConnectTests {
 
   @Test func invalidPrivateKeyThrowsAuthenticationFailed() async throws {
     await #expect {
-      try await SSHClient.connect(
-        host: host, port: port, user: user, privateKeyURL: publicKey)
+      try await SSHClient.connect(host: host, port: port, user: user, privateKeyURL: publicKey)
+    } throws: { error in
+      (error as? SSHError)?.isAuthenticationFailed == true
+    }
+  }
+
+  @Test func invalidBase64PrivateKeyThrowsAuthenticationFailed() async throws {
+    await #expect {
+      try await SSHClient.connect(host: host, port: port, user: user, base64PrivateKey: "")
     } throws: { error in
       (error as? SSHError)?.isAuthenticationFailed == true
     }
