@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.16.0...v1.16.1) (2026-05-07)
+
+
+### Bug Fixes
+
+* library error code 0 when SSH connection has failed ([#118](https://github.com/kosolabs/swift-lib-ssh/issues/118)) ([5645089](https://github.com/kosolabs/swift-lib-ssh/commit/5645089d9143931c50201031e20c10f9e6c51e2d))
+
 ## [1.16.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.15.0...v1.16.0) (2026-05-05)
 
 
