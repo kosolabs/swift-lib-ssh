@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.16.3...v1.17.0) (2026-05-12)
+
+
+### Features
+
+* add support for symlinks ([#125](https://github.com/kosolabs/swift-lib-ssh/issues/125)) ([b7660ce](https://github.com/kosolabs/swift-lib-ssh/commit/b7660ce61c797fd74417296416589f37b79583ac))
+
 ## [1.16.3](https://github.com/kosolabs/swift-lib-ssh/compare/v1.16.2...v1.16.3) (2026-05-07)
 
 
