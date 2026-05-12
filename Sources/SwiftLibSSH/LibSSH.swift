@@ -485,6 +485,25 @@ final actor SSHSession {
     try validate(sftp_setstat(sftp, path, attributes), sftp: sftp)
   }
 
+  func lstat(id: SFTPClientID, path: String) throws -> SFTPAttributes {
+    let sftp = try sftp(id: id)
+    let attributes = try validate(sftp_lstat(sftp, path), sftp: sftp)
+    defer { sftp_attributes_free(attributes) }
+    return SFTPAttributes.from(raw: attributes.pointee)
+  }
+
+  func readlink(id: SFTPClientID, path: String) throws -> String {
+    let sftp = try sftp(id: id)
+    let link = try validate(sftp_readlink(sftp, path), sftp: sftp)
+    defer { ssh_string_free_char(link) }
+    return String(cString: link)
+  }
+
+  func symlink(id: SFTPClientID, target: String, dest: String) throws {
+    let sftp = try sftp(id: id)
+    try validate(sftp_symlink(sftp, target, dest), sftp: sftp)
+  }
+
   func limits(id: SFTPClientID) throws -> SFTPLimits {
     let sftp = try sftp(id: id)
     let raw = try validate(sftp_limits(sftp), sftp: sftp)

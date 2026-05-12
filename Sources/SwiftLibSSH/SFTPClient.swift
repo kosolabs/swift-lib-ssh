@@ -44,8 +44,14 @@ public struct SFTPClient: Sendable {
     try await session.withDirectory(id: id, path: path, perform: perform)
   }
 
-  public func attributes(atPath path: String) async throws -> SFTPAttributes {
-    try await session.stat(id: id, path: path)
+  public func attributes(
+    atPath path: String, followSymlinks: Bool = true
+  ) async throws -> SFTPAttributes {
+    if followSymlinks {
+      try await session.stat(id: id, path: path)
+    } else {
+      try await session.lstat(id: id, path: path)
+    }
   }
 
   public func setAttributes(
@@ -75,6 +81,14 @@ public struct SFTPClient: Sendable {
 
   public func removeFile(atPath path: String) async throws {
     try await session.unlink(id: id, path: path)
+  }
+
+  public func symlinkDestination(atPath path: String) async throws -> String {
+    try await session.readlink(id: id, path: path)
+  }
+
+  public func createSymlink(to target: String, at dest: String) async throws {
+    try await session.symlink(id: id, target: target, dest: dest)
   }
 
   public func withSftpFile<T: Sendable>(

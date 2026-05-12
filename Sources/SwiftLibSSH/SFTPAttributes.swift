@@ -2,7 +2,7 @@ import CLibSSH
 import Foundation
 
 public struct SFTPAttributes: Codable, Sendable {
-  public enum `Type`: Codable, Sendable {
+  public enum FileType: Codable, Sendable {
     case regular
     case directory
     case symlink
@@ -28,7 +28,7 @@ public struct SFTPAttributes: Codable, Sendable {
   public let name: String?
   // TODO: Decode flags as bools
   public let flags: UInt32
-  public let type: Type
+  public let type: FileType
   public let size: UInt64
   public let uid: UInt32
   public let gid: UInt32
@@ -51,7 +51,7 @@ public struct SFTPAttributes: Codable, Sendable {
   public init(
     name: String? = nil,
     flags: UInt32 = 0,
-    type: Type = .unknown,
+    type: FileType = .unknown,
     size: UInt64 = 0,
     uid: UInt32 = 0,
     gid: UInt32 = 0,

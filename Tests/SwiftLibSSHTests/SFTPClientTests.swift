@@ -38,6 +38,36 @@ struct SFTPClientTests {
         (error as? SSHError)?.sftpError == .noSuchFile
       }
     }
+
+    @Test func attributesOfSymlinkFollowsSymlink() async throws {
+      try await withAuthenticatedClient { ssh in
+        let target = "/tmp/stat-follow-target.dat"
+        let link = "/tmp/stat-follow-link.dat"
+        try await ssh.execute(
+          "dd if=/dev/urandom of=\(target) bs=1024 count=1 && ln -sf \(target) \(link)")
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: link)
+        }
+
+        #expect(attrs.type == .regular)
+        #expect(attrs.size == 1024)
+      }
+    }
+
+    @Test func attributesOfSymlinkSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let target = "/tmp/lstat-target.txt"
+        let link = "/tmp/lstat-link.txt"
+        try await ssh.execute("touch \(target) && ln -sf \(target) \(link)")
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: link, followSymlinks: false)
+        }
+
+        #expect(attrs.type == .symlink)
+      }
+    }
   }
 
   struct SetAttributes {
@@ -346,10 +376,106 @@ struct SFTPClientTests {
     }
   }
 
-  struct IterateDirectory {
-    @Test func iterateDirectorySucceeds() async throws {
+  struct SymlinkDestination {
+    @Test func symlinkDestinationSucceeds() async throws {
       try await withAuthenticatedClient { ssh in
-        let dirPath = "/tmp/test-iterate-directory"
+        let target = "/tmp/readlink-target.txt"
+        let link = "/tmp/readlink-link.txt"
+        try await ssh.execute("touch \(target) && ln -sf \(target) \(link)")
+
+        let resolved = try await ssh.withSftp { sftp in
+          try await sftp.symlinkDestination(atPath: link)
+        }
+
+        #expect(resolved == target)
+      }
+    }
+
+    @Test func symlinkDestinationOnNonSymlinkThrows() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          let path = "/tmp/readlink-regular.txt"
+          try await ssh.execute("touch \(path)")
+          try await ssh.withSftp { sftp in
+            try await sftp.symlinkDestination(atPath: path)
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .badMessage
+      }
+    }
+
+    @Test func symlinkDestinationOnMissingFileThrowsNoSuchFile() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          try await ssh.withSftp { sftp in
+            try await sftp.symlinkDestination(atPath: "/tmp/readlink-missing.txt")
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .noSuchFile
+      }
+    }
+  }
+
+  struct CreateSymlink {
+    @Test func createSymlinkSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let target = "/tmp/symlink-target.txt"
+        let link = "/tmp/symlink-link.txt"
+        try await ssh.execute("touch \(target) && rm -f \(link)")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.createSymlink(to: target, at: link)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: link, followSymlinks: false)
+        }
+        #expect(attrs.type == .symlink)
+
+        let resolved = try await ssh.withSftp { sftp in
+          try await sftp.symlinkDestination(atPath: link)
+        }
+        #expect(resolved == target)
+      }
+    }
+
+    @Test func createSymlinkToDanglingTargetSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let link = "/tmp/symlink-dangling.txt"
+        try await ssh.execute("rm -f \(link)")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.createSymlink(to: "/tmp/does-not-exist.txt", at: link)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(atPath: link, followSymlinks: false)
+        }
+        #expect(attrs.type == .symlink)
+      }
+    }
+
+    @Test func createSymlinkAtExistingPathThrows() async throws {
+      await #expect {
+        try await withAuthenticatedClient { ssh in
+          let link = "/tmp/symlink-existing.txt"
+          try await ssh.execute("touch \(link)")
+          try await ssh.withSftp { sftp in
+            try await sftp.createSymlink(to: "/tmp/anything.txt", at: link)
+          }
+        }
+      } throws: { error in
+        (error as? SSHError)?.sftpError == .failure
+      }
+    }
+  }
+
+  struct IterateDirectory {
+    @Test func iterateDirectoryReturnsNames() async throws {
+      try await withAuthenticatedClient { ssh in
+        let dirPath = "/tmp/test-iterate-names"
         try await ssh.execute("rm -rf \(dirPath) && mkdir \(dirPath)")
 
         try await ssh.execute("touch \(dirPath)/file{1..3}.txt")
@@ -367,6 +493,39 @@ struct SFTPClientTests {
 
           #expect(names == Set(["file1.txt", "file2.txt", "file3.txt"]))
         })
+      }
+    }
+
+    @Test func iterateDirectoryReturnsCorrectTypes() async throws {
+      try await withAuthenticatedClient { ssh in
+        let dirPath = "/tmp/test-iterate-types"
+
+        try await ssh.execute(
+          """
+          rm -rf \(dirPath) && \
+          mkdir \(dirPath) && \
+          touch \(dirPath)/file.txt && \
+          mkdir \(dirPath)/subdir && \
+          ln -s \(dirPath)/file.txt \(dirPath)/linked-file.txt && \
+          ln -s \(dirPath)/subdir \(dirPath)/linked-dir
+          """)
+
+        try await ssh.withSftp { sftp in
+          let types = try await sftp.withDirectory(atPath: dirPath) { directory in
+            var types: [String: SFTPAttributes.FileType] = [:]
+            for try await attrs in directory {
+              if let name = attrs.name {
+                types[name] = attrs.type
+              }
+            }
+            return types
+          }
+
+          #expect(types["file.txt"] == .regular)
+          #expect(types["subdir"] == .directory)
+          #expect(types["linked-file.txt"] == .symlink)
+          #expect(types["linked-dir"] == .symlink)
+        }
       }
     }
 
