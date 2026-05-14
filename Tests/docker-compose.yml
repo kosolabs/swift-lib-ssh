@@ -10,7 +10,7 @@ services:
       - PASSWORD=mypass
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "22"]
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/22"]
       interval: 10s
       timeout: 5s
       retries: 3
