@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.0...v1.17.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* drop `Path` suffix in parameter names ([#127](https://github.com/kosolabs/swift-lib-ssh/issues/127)) ([b89d6e4](https://github.com/kosolabs/swift-lib-ssh/commit/b89d6e401b2a24ee1fb24a9afc96045d2b066feb))
+
 ## [1.17.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.16.3...v1.17.0) (2026-05-12)
 
 
