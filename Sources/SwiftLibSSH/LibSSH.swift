@@ -415,12 +415,12 @@ final actor SSHSession {
     sftp_free(sftp)
   }
 
-  func mkdir(id: SFTPClientID, atPath path: String, mode: mode_t = 0o755) throws {
+  func mkdir(id: SFTPClientID, at path: String, mode: mode_t = 0o755) throws {
     let sftp = try sftp(id: id)
     try validate(sftp_mkdir(sftp, path, mode), sftp: sftp)
   }
 
-  func rmdir(id: SFTPClientID, atPath path: String) throws {
+  func rmdir(id: SFTPClientID, at path: String) throws {
     let sftp = try sftp(id: id)
     try validate(sftp_rmdir(sftp, path), sftp: sftp)
   }

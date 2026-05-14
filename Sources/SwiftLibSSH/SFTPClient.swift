@@ -15,37 +15,37 @@ public struct SFTPClient: Sendable {
     await session.freeSftp(id: id)
   }
 
-  public func createDirectory(atPath path: String, mode: mode_t = 0o755) async throws {
-    try await session.mkdir(id: id, atPath: path, mode: mode)
+  public func createDirectory(at path: String, mode: mode_t = 0o755) async throws {
+    try await session.mkdir(id: id, at: path, mode: mode)
   }
 
-  public func removeDirectory(atPath path: String) async throws {
-    try await session.rmdir(id: id, atPath: path)
+  public func removeDirectory(at path: String) async throws {
+    try await session.rmdir(id: id, at: path)
   }
 
-  public func removeDirectoryRecursively(atPath path: String) async throws {
-    try await withDirectory(atPath: path) { directory in
+  public func removeDirectoryRecursively(at path: String) async throws {
+    try await withDirectory(at: path) { directory in
       for try await entry in directory {
         guard let name = entry.name else { continue }
         let entryPath = path + "/" + name
         if entry.type == .directory {
-          try await removeDirectoryRecursively(atPath: entryPath)
+          try await removeDirectoryRecursively(at: entryPath)
         } else {
-          try await removeFile(atPath: entryPath)
+          try await removeFile(at: entryPath)
         }
       }
     }
-    try await removeDirectory(atPath: path)
+    try await removeDirectory(at: path)
   }
 
   public func withDirectory<T: Sendable>(
-    atPath path: String, perform: @Sendable (SFTPDirectory) async throws -> T
+    at path: String, perform: @Sendable (SFTPDirectory) async throws -> T
   ) async throws -> T {
     try await session.withDirectory(id: id, path: path, perform: perform)
   }
 
   public func attributes(
-    atPath path: String, followSymlinks: Bool = true
+    at path: String, followSymlinks: Bool = true
   ) async throws -> SFTPAttributes {
     if followSymlinks {
       try await session.stat(id: id, path: path)
@@ -55,7 +55,7 @@ public struct SFTPClient: Sendable {
   }
 
   public func setAttributes(
-    atPath path: String,
+    at path: String,
     size: UInt64? = nil,
     uid: UInt32? = nil,
     gid: UInt32? = nil,
@@ -79,11 +79,11 @@ public struct SFTPClient: Sendable {
     try await session.rename(id: id, from: oldPath, to: newPath)
   }
 
-  public func removeFile(atPath path: String) async throws {
+  public func removeFile(at path: String) async throws {
     try await session.unlink(id: id, path: path)
   }
 
-  public func symlinkDestination(atPath path: String) async throws -> String {
+  public func symlinkTarget(at path: String) async throws -> String {
     try await session.readlink(id: id, path: path)
   }
 
@@ -92,7 +92,7 @@ public struct SFTPClient: Sendable {
   }
 
   public func withSftpFile<T: Sendable>(
-    atPath path: String, accessType: AccessType, mode: mode_t = 0,
+    at path: String, accessType: AccessType, mode: mode_t = 0,
     perform: @Sendable (SFTPFile) async throws -> T
   ) async throws -> T {
     try await session.withSftpFile(
@@ -105,7 +105,7 @@ public struct SFTPClient: Sendable {
     bufferSize: UInt64 = SFTPLimits.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
-    try await withSftpFile(atPath: remotePath, accessType: .readOnly) { file in
+    try await withSftpFile(at: remotePath, accessType: .readOnly) { file in
       try await file.download(to: localURL, bufferSize: bufferSize, progress: progress)
     }
   }
@@ -115,7 +115,7 @@ public struct SFTPClient: Sendable {
     bufferSize: UInt64 = SFTPLimits.defaultBufferSize,
     progress: (@Sendable (UInt64) -> Void)? = nil
   ) async throws {
-    try await withSftpFile(atPath: remotePath, accessType: .writeOnly, mode: mode) { file in
+    try await withSftpFile(at: remotePath, accessType: .writeOnly, mode: mode) { file in
       try await file.upload(from: localURL, bufferSize: bufferSize, progress: progress)
     }
   }

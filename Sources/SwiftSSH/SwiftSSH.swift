@@ -72,7 +72,7 @@ struct Upload: AsyncParsableCommand {
       let speedometer = Speedometer(total: try fp.seekToEnd())
       try fp.seek(toOffset: 0)
 
-      try await sftp.withSftpFile(atPath: dst, accessType: .writeOnly, mode: mode) { file in
+      try await sftp.withSftpFile(at: dst, accessType: .writeOnly, mode: mode) { file in
         try await file.upload(from: URL(filePath: src), bufferSize: bufferSize) { completed in
           if let progress = speedometer.update(completed: Int(completed)) {
             print("Uploading from \(src) to \(dst): \(progress)")
@@ -102,10 +102,10 @@ struct Download: AsyncParsableCommand {
 
   func run() async throws {
     try await sshConfig.withConnection { ssh, sftp in
-      let attrs = try await sftp.attributes(atPath: src)
+      let attrs = try await sftp.attributes(at: src)
       let speedometer = Speedometer(total: attrs.size)
 
-      try await sftp.withSftpFile(atPath: src, accessType: .readOnly) { file in
+      try await sftp.withSftpFile(at: src, accessType: .readOnly) { file in
         try await file.download(to: URL(filePath: dst), bufferSize: bufferSize) { completed in
           if let progress = speedometer.update(completed: Int(completed)) {
             print("Downloading from \(src) to \(dst): \(progress)")

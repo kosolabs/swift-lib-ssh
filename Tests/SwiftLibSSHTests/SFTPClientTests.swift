@@ -18,7 +18,7 @@ struct SFTPClientTests {
         try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=1")
 
         let attrs = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         #expect(attrs.name == nil)
@@ -31,7 +31,7 @@ struct SFTPClientTests {
       await #expect {
         try await withAuthenticatedClient { ssh in
           try await ssh.withSftp { sftp in
-            try await sftp.attributes(atPath: "/tmp/missing.dat")
+            try await sftp.attributes(at: "/tmp/missing.dat")
           }
         }
       } throws: { error in
@@ -47,7 +47,7 @@ struct SFTPClientTests {
           "dd if=/dev/urandom of=\(target) bs=1024 count=1 && ln -sf \(target) \(link)")
 
         let attrs = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: link)
+          try await sftp.attributes(at: link)
         }
 
         #expect(attrs.type == .regular)
@@ -62,7 +62,7 @@ struct SFTPClientTests {
         try await ssh.execute("touch \(target) && ln -sf \(target) \(link)")
 
         let attrs = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: link, followSymlinks: false)
+          try await sftp.attributes(at: link, followSymlinks: false)
         }
 
         #expect(attrs.type == .symlink)
@@ -77,15 +77,15 @@ struct SFTPClientTests {
         try await ssh.execute("touch \(path) && chmod 0777 \(path)")
 
         let before = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         try await ssh.withSftp { sftp in
-          try await sftp.setAttributes(atPath: path, permissions: 0o600)
+          try await sftp.setAttributes(at: path, permissions: 0o600)
         }
 
         let after = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         #expect((after.permissions & 0o777) == 0o600)
@@ -104,17 +104,17 @@ struct SFTPClientTests {
         try await ssh.execute("touch \(path)")
 
         let before = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         let targetDate = Date(timeIntervalSince1970: 1_000_000)
 
         try await ssh.withSftp { sftp in
-          try await sftp.setAttributes(atPath: path, modifyTime: targetDate)
+          try await sftp.setAttributes(at: path, modifyTime: targetDate)
         }
 
         let after = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         #expect(after.modifyTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
@@ -133,17 +133,17 @@ struct SFTPClientTests {
         try await ssh.execute("touch \(path)")
 
         let before = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         let targetDate = Date(timeIntervalSince1970: 1_000_000)
 
         try await ssh.withSftp { sftp in
-          try await sftp.setAttributes(atPath: path, accessTime: targetDate)
+          try await sftp.setAttributes(at: path, accessTime: targetDate)
         }
 
         let after = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         #expect(after.accessTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
@@ -162,15 +162,15 @@ struct SFTPClientTests {
         try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=4")
 
         let before = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         try await ssh.withSftp { sftp in
-          try await sftp.setAttributes(atPath: path, size: 1024)
+          try await sftp.setAttributes(at: path, size: 1024)
         }
 
         let after = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         #expect(after.size == 1024)
@@ -189,16 +189,16 @@ struct SFTPClientTests {
         try await ssh.execute("touch \(path)")
 
         let before = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         // Setting uid/gid to their current values is always permitted
         try await ssh.withSftp { sftp in
-          try await sftp.setAttributes(atPath: path, uid: before.uid, gid: before.gid)
+          try await sftp.setAttributes(at: path, uid: before.uid, gid: before.gid)
         }
 
         let after = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         #expect(after.uid == before.uid)
@@ -217,14 +217,14 @@ struct SFTPClientTests {
         try await ssh.execute("dd if=/dev/urandom of=\(path) bs=1024 count=4 && chmod 0777 \(path)")
 
         let before = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         let targetDate = Date(timeIntervalSince1970: 2_000_000)
 
         try await ssh.withSftp { sftp in
           try await sftp.setAttributes(
-            atPath: path,
+            at: path,
             size: 512,
             permissions: 0o644,
             modifyTime: targetDate
@@ -232,7 +232,7 @@ struct SFTPClientTests {
         }
 
         let after = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         }
 
         #expect(after.size == 512)
@@ -253,11 +253,11 @@ struct SFTPClientTests {
         try await ssh.execute("rmdir \(path)")
 
         try await ssh.withSftp(perform: { sftp in
-          try await sftp.createDirectory(atPath: path)
+          try await sftp.createDirectory(at: path)
         })
 
         let attrs = try await ssh.withSftp(perform: { sftp in
-          try await sftp.attributes(atPath: path)
+          try await sftp.attributes(at: path)
         })
 
         #expect(attrs.type == .directory)
@@ -271,7 +271,7 @@ struct SFTPClientTests {
           try await ssh.execute("rm -rf \(path) && mkdir \(path)")
 
           try await ssh.withSftp(perform: { sftp in
-            try await sftp.createDirectory(atPath: path)
+            try await sftp.createDirectory(at: path)
           })
         }
       } throws: { error in
@@ -287,11 +287,11 @@ struct SFTPClientTests {
         try await ssh.execute("mkdir \(path)")
 
         try await ssh.withSftp(perform: { sftp in
-          try await sftp.removeDirectory(atPath: path)
+          try await sftp.removeDirectory(at: path)
         })
 
         let attrs = try await ssh.withSftp(perform: { sftp in
-          try? await sftp.attributes(atPath: path)
+          try? await sftp.attributes(at: path)
         })
 
         #expect(attrs == nil)
@@ -302,7 +302,7 @@ struct SFTPClientTests {
       await #expect {
         try await withAuthenticatedClient { ssh in
           try await ssh.withSftp(perform: { sftp in
-            try await sftp.removeDirectory(atPath: "/tmp/missing")
+            try await sftp.removeDirectory(at: "/tmp/missing")
           })
         }
       } throws: { error in
@@ -318,11 +318,11 @@ struct SFTPClientTests {
         try await ssh.execute("rm -rf \(path) && mkdir \(path)")
 
         try await ssh.withSftp { sftp in
-          try await sftp.removeDirectoryRecursively(atPath: path)
+          try await sftp.removeDirectoryRecursively(at: path)
         }
 
         let attrs = try await ssh.withSftp { sftp in
-          try? await sftp.attributes(atPath: path)
+          try? await sftp.attributes(at: path)
         }
         #expect(attrs == nil)
       }
@@ -335,11 +335,11 @@ struct SFTPClientTests {
           "rm -rf \(path) && mkdir \(path) && touch \(path)/a.txt \(path)/b.txt")
 
         try await ssh.withSftp { sftp in
-          try await sftp.removeDirectoryRecursively(atPath: path)
+          try await sftp.removeDirectoryRecursively(at: path)
         }
 
         let attrs = try await ssh.withSftp { sftp in
-          try? await sftp.attributes(atPath: path)
+          try? await sftp.attributes(at: path)
         }
         #expect(attrs == nil)
       }
@@ -353,11 +353,11 @@ struct SFTPClientTests {
         )
 
         try await ssh.withSftp { sftp in
-          try await sftp.removeDirectoryRecursively(atPath: path)
+          try await sftp.removeDirectoryRecursively(at: path)
         }
 
         let attrs = try await ssh.withSftp { sftp in
-          try? await sftp.attributes(atPath: path)
+          try? await sftp.attributes(at: path)
         }
         #expect(attrs == nil)
       }
@@ -367,7 +367,7 @@ struct SFTPClientTests {
       await #expect {
         try await withAuthenticatedClient { ssh in
           try await ssh.withSftp { sftp in
-            try await sftp.removeDirectoryRecursively(atPath: "/tmp/missing-recursive")
+            try await sftp.removeDirectoryRecursively(at: "/tmp/missing-recursive")
           }
         }
       } throws: { error in
@@ -376,28 +376,28 @@ struct SFTPClientTests {
     }
   }
 
-  struct SymlinkDestination {
-    @Test func symlinkDestinationSucceeds() async throws {
+  struct SymlinkTarget {
+    @Test func symlinkTargetSucceeds() async throws {
       try await withAuthenticatedClient { ssh in
         let target = "/tmp/readlink-target.txt"
         let link = "/tmp/readlink-link.txt"
         try await ssh.execute("touch \(target) && ln -sf \(target) \(link)")
 
         let resolved = try await ssh.withSftp { sftp in
-          try await sftp.symlinkDestination(atPath: link)
+          try await sftp.symlinkTarget(at: link)
         }
 
         #expect(resolved == target)
       }
     }
 
-    @Test func symlinkDestinationOnNonSymlinkThrows() async throws {
+    @Test func symlinkTargetOnNonSymlinkThrows() async throws {
       await #expect {
         try await withAuthenticatedClient { ssh in
           let path = "/tmp/readlink-regular.txt"
           try await ssh.execute("touch \(path)")
           try await ssh.withSftp { sftp in
-            try await sftp.symlinkDestination(atPath: path)
+            try await sftp.symlinkTarget(at: path)
           }
         }
       } throws: { error in
@@ -405,11 +405,11 @@ struct SFTPClientTests {
       }
     }
 
-    @Test func symlinkDestinationOnMissingFileThrowsNoSuchFile() async throws {
+    @Test func symlinkTargetOnMissingFileThrowsNoSuchFile() async throws {
       await #expect {
         try await withAuthenticatedClient { ssh in
           try await ssh.withSftp { sftp in
-            try await sftp.symlinkDestination(atPath: "/tmp/readlink-missing.txt")
+            try await sftp.symlinkTarget(at: "/tmp/readlink-missing.txt")
           }
         }
       } throws: { error in
@@ -430,12 +430,12 @@ struct SFTPClientTests {
         }
 
         let attrs = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: link, followSymlinks: false)
+          try await sftp.attributes(at: link, followSymlinks: false)
         }
         #expect(attrs.type == .symlink)
 
         let resolved = try await ssh.withSftp { sftp in
-          try await sftp.symlinkDestination(atPath: link)
+          try await sftp.symlinkTarget(at: link)
         }
         #expect(resolved == target)
       }
@@ -451,7 +451,7 @@ struct SFTPClientTests {
         }
 
         let attrs = try await ssh.withSftp { sftp in
-          try await sftp.attributes(atPath: link, followSymlinks: false)
+          try await sftp.attributes(at: link, followSymlinks: false)
         }
         #expect(attrs.type == .symlink)
       }
@@ -481,7 +481,7 @@ struct SFTPClientTests {
         try await ssh.execute("touch \(dirPath)/file{1..3}.txt")
 
         try await ssh.withSftp(perform: { sftp in
-          let names = try await sftp.withDirectory(atPath: dirPath) { directory in
+          let names = try await sftp.withDirectory(at: dirPath) { directory in
             var names = Set<String>()
             for try await attrs in directory {
               if let name = attrs.name {
@@ -511,7 +511,7 @@ struct SFTPClientTests {
           """)
 
         try await ssh.withSftp { sftp in
-          let types = try await sftp.withDirectory(atPath: dirPath) { directory in
+          let types = try await sftp.withDirectory(at: dirPath) { directory in
             var types: [String: SFTPAttributes.FileType] = [:]
             for try await attrs in directory {
               if let name = attrs.name {
@@ -533,7 +533,7 @@ struct SFTPClientTests {
       await #expect {
         try await withAuthenticatedClient { ssh in
           try await ssh.withSftp(perform: { sftp in
-            try await sftp.withDirectory(atPath: "/tmp/missing") { directory in
+            try await sftp.withDirectory(at: "/tmp/missing") { directory in
               for try await _ in directory {}
             }
           })
@@ -571,7 +571,7 @@ struct SFTPClientTests {
         let expected = try await ssh.md5(ofFile: srcPath)
 
         try await ssh.withSftp { sftp in
-          let attrs = try await sftp.attributes(atPath: srcPath)
+          let attrs = try await sftp.attributes(at: srcPath)
           let transferred = Atomic<UInt64>(0)
 
           let elapsed = try await ContinuousClock().measure {
@@ -602,7 +602,7 @@ struct SFTPClientTests {
         let expected = try await ssh.md5(ofFile: srcPath)
 
         try await ssh.withSftp { sftp in
-          let attrs = try await sftp.attributes(atPath: srcPath)
+          let attrs = try await sftp.attributes(at: srcPath)
           let transferred = Atomic<UInt64>(0)
 
           try await sftp.download(from: srcPath, to: destURL, bufferSize: 1_048_576) { progress in
@@ -694,12 +694,12 @@ struct SFTPClientTests {
       }
 
       let oldAttrs = try await ssh.withSftp { sftp in
-        try? await sftp.attributes(atPath: oldPath)
+        try? await sftp.attributes(at: oldPath)
       }
       #expect(oldAttrs == nil)
 
       let newAttrs = try await ssh.withSftp { sftp in
-        try await sftp.attributes(atPath: newPath)
+        try await sftp.attributes(at: newPath)
       }
       #expect(newAttrs.type == .regular)
     }
@@ -732,12 +732,12 @@ struct SFTPClientTests {
       }
 
       let oldAttrs = try await ssh.withSftp { sftp in
-        try? await sftp.attributes(atPath: oldPath)
+        try? await sftp.attributes(at: oldPath)
       }
       #expect(oldAttrs == nil)
 
       let newAttrs = try await ssh.withSftp { sftp in
-        try await sftp.attributes(atPath: newPath)
+        try await sftp.attributes(at: newPath)
       }
       #expect(newAttrs.type == .regular)
     }
@@ -750,11 +750,11 @@ struct SFTPClientTests {
         try await ssh.execute("touch \(path)")
 
         try await ssh.withSftp { sftp in
-          try await sftp.removeFile(atPath: path)
+          try await sftp.removeFile(at: path)
         }
 
         let attrs = try await ssh.withSftp { sftp in
-          try? await sftp.attributes(atPath: path)
+          try? await sftp.attributes(at: path)
         }
 
         #expect(attrs == nil)
@@ -765,7 +765,7 @@ struct SFTPClientTests {
       await #expect {
         try await withAuthenticatedClient { ssh in
           try await ssh.withSftp { sftp in
-            try await sftp.removeFile(atPath: "/tmp/missing.dat")
+            try await sftp.removeFile(at: "/tmp/missing.dat")
           }
         }
       } throws: { error in
