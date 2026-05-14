@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.1...v1.17.2) (2026-05-14)
+
+
+### Bug Fixes
+
+* local testing failing against docker test server ([#129](https://github.com/kosolabs/swift-lib-ssh/issues/129)) ([7315baf](https://github.com/kosolabs/swift-lib-ssh/commit/7315baf967118a9977a0796640d0a57d402df955))
+
 ## [1.17.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.0...v1.17.1) (2026-05-14)
 
 
