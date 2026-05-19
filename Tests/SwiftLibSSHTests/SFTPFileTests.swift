@@ -278,7 +278,7 @@ struct SFTPFileTests {
         try await ssh.execute("dd if=/dev/urandom of=/tmp/drain.dat bs=1M count=1")
 
         let expected = try await ssh.withSftp { sftp in
-          try await sftp.attributes(at: "/tmp/drain.dat").size
+          try await sftp.attributes(at: "/tmp/drain.dat").size!
         }
 
         let actual = try await ssh.withSftp { sftp in

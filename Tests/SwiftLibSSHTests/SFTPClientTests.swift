@@ -88,7 +88,7 @@ struct SFTPClientTests {
           try await sftp.attributes(at: path)
         }
 
-        #expect((after.permissions & 0o777) == 0o600)
+        #expect((after.permissions! & 0o777) == 0o600)
         // Unchanged
         #expect(after.size == before.size)
         #expect(after.uid == before.uid)
@@ -117,12 +117,12 @@ struct SFTPClientTests {
           try await sftp.attributes(at: path)
         }
 
-        #expect(after.modifyTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
+        #expect(after.modifyTime?.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
         // Unchanged
         #expect(after.size == before.size)
         #expect(after.uid == before.uid)
         #expect(after.gid == before.gid)
-        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect((after.permissions! & 0o777) == (before.permissions! & 0o777))
         #expect(after.accessTime == before.accessTime)
       }
     }
@@ -146,12 +146,12 @@ struct SFTPClientTests {
           try await sftp.attributes(at: path)
         }
 
-        #expect(after.accessTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
+        #expect(after.accessTime?.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
         // Unchanged
         #expect(after.size == before.size)
         #expect(after.uid == before.uid)
         #expect(after.gid == before.gid)
-        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect((after.permissions! & 0o777) == (before.permissions! & 0o777))
         #expect(after.modifyTime == before.modifyTime)
       }
     }
@@ -177,7 +177,7 @@ struct SFTPClientTests {
         // Unchanged
         #expect(after.uid == before.uid)
         #expect(after.gid == before.gid)
-        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect((after.permissions! & 0o777) == (before.permissions! & 0o777))
         #expect(after.accessTime == before.accessTime)
         #expect(after.modifyTime == before.modifyTime)
       }
@@ -205,7 +205,7 @@ struct SFTPClientTests {
         #expect(after.gid == before.gid)
         // Unchanged
         #expect(after.size == before.size)
-        #expect((after.permissions & 0o777) == (before.permissions & 0o777))
+        #expect((after.permissions! & 0o777) == (before.permissions! & 0o777))
         #expect(after.accessTime == before.accessTime)
         #expect(after.modifyTime == before.modifyTime)
       }
@@ -236,8 +236,8 @@ struct SFTPClientTests {
         }
 
         #expect(after.size == 512)
-        #expect((after.permissions & 0o777) == 0o644)
-        #expect(after.modifyTime.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
+        #expect((after.permissions! & 0o777) == 0o644)
+        #expect(after.modifyTime?.timeIntervalSince1970 == targetDate.timeIntervalSince1970)
         // Unchanged
         #expect(after.uid == before.uid)
         #expect(after.gid == before.gid)
@@ -579,9 +579,9 @@ struct SFTPClientTests {
               transferred.store(progress, ordering: .relaxed)
             }
           }
-          print("Download: \(metrics(size: attrs.size, duration: elapsed))")
+          print("Download: \(metrics(size: attrs.size!, duration: elapsed))")
 
-          #expect(transferred.load(ordering: .relaxed) == attrs.size)
+          #expect(transferred.load(ordering: .relaxed) == attrs.size!)
         }
 
         let actual = try md5(ofFile: destURL.path)
@@ -609,7 +609,7 @@ struct SFTPClientTests {
             transferred.store(progress, ordering: .relaxed)
           }
 
-          #expect(transferred.load(ordering: .relaxed) == attrs.size)
+          #expect(transferred.load(ordering: .relaxed) == attrs.size!)
         }
 
         let actual = try md5(ofFile: destURL.path)

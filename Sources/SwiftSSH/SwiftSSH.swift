@@ -103,7 +103,7 @@ struct Download: AsyncParsableCommand {
   func run() async throws {
     try await sshConfig.withConnection { ssh, sftp in
       let attrs = try await sftp.attributes(at: src)
-      let speedometer = Speedometer(total: attrs.size)
+      let speedometer = Speedometer(total: attrs.size ?? 0)
 
       try await sftp.withSftpFile(at: src, accessType: .readOnly) { file in
         try await file.download(to: URL(filePath: dst), bufferSize: bufferSize) { completed in
