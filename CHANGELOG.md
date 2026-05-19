@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.3](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.2...v1.17.3) (2026-05-19)
+
+
+### Bug Fixes
+
+* use flags to set SFTPAttributes optionally ([#131](https://github.com/kosolabs/swift-lib-ssh/issues/131)) ([1c60b86](https://github.com/kosolabs/swift-lib-ssh/commit/1c60b86c0163ab6486bbf319d216bb874d1e8cef))
+
 ## [1.17.2](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.1...v1.17.2) (2026-05-14)
 
 
