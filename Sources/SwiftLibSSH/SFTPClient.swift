@@ -19,6 +19,19 @@ public struct SFTPClient: Sendable {
     try await session.mkdir(id: id, at: path, mode: mode)
   }
 
+  public func createDirectoryRecursively(at path: String, mode: mode_t = 0o755) async throws {
+    let isAbsolute = path.hasPrefix("/")
+    let components = path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+    for i in components.indices {
+      let partial = (isAbsolute ? "/" : "") + components[0...i].joined(separator: "/")
+      do {
+        try await createDirectory(at: partial, mode: mode)
+      } catch {
+        guard (error as? SSHError)?.sftpError == .fileAlreadyExists else { throw error }
+      }
+    }
+  }
+
   public func removeDirectory(at path: String) async throws {
     try await session.rmdir(id: id, at: path)
   }
