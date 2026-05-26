@@ -280,6 +280,73 @@ struct SFTPClientTests {
     }
   }
 
+  struct CreateDirectoryRecursively {
+    @Test func createSingleDirectorySucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/test-create-recursive-single"
+        try await ssh.execute("rm -rf \(path)")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.createDirectoryRecursively(at: path)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(at: path)
+        }
+        #expect(attrs.type == .directory)
+      }
+    }
+
+    @Test func createNestedDirectoriesSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/test-create-recursive-nested/a/b/c"
+        try await ssh.execute("rm -rf /tmp/test-create-recursive-nested")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.createDirectoryRecursively(at: path)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(at: path)
+        }
+        #expect(attrs.type == .directory)
+      }
+    }
+
+    @Test func createDirectoryWhenAlreadyExistsSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let path = "/tmp/test-create-recursive-existing"
+        try await ssh.execute("rm -rf \(path) && mkdir \(path)")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.createDirectoryRecursively(at: path)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(at: path)
+        }
+        #expect(attrs.type == .directory)
+      }
+    }
+
+    @Test func createNestedDirectoriesWhenIntermediateExistsSucceeds() async throws {
+      try await withAuthenticatedClient { ssh in
+        let base = "/tmp/test-create-recursive-partial"
+        let path = "\(base)/a/b"
+        try await ssh.execute("rm -rf \(base) && mkdir -p \(base)/a")
+
+        try await ssh.withSftp { sftp in
+          try await sftp.createDirectoryRecursively(at: path)
+        }
+
+        let attrs = try await ssh.withSftp { sftp in
+          try await sftp.attributes(at: path)
+        }
+        #expect(attrs.type == .directory)
+      }
+    }
+  }
+
   struct RemoveDirectory {
     @Test func removeDirectorySucceeds() async throws {
       try await withAuthenticatedClient { ssh in
