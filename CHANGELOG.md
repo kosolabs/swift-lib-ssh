@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.3...v1.18.0) (2026-05-26)
+
+
+### Features
+
+* helper function to create directories recursively ([#134](https://github.com/kosolabs/swift-lib-ssh/issues/134)) ([57862b5](https://github.com/kosolabs/swift-lib-ssh/commit/57862b5ff2188c2bbaa52cfdfbb09a20f8dd9b13))
+
 ## [1.17.3](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.2...v1.17.3) (2026-05-19)
 
 
