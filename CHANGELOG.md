@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.18.0...v1.19.0) (2026-06-10)
+
+
+### Features
+
+* narrow thrown error types to SSHError where possible ([#136](https://github.com/kosolabs/swift-lib-ssh/issues/136)) ([d7c066e](https://github.com/kosolabs/swift-lib-ssh/commit/d7c066e705a38be28687a082293ea8da22209aae))
+
 ## [1.18.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.17.3...v1.18.0) (2026-05-26)
 
 
