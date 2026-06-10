@@ -11,7 +11,7 @@ public struct SFTPDirectory: Sendable, AsyncSequence {
     self.directoryId = directoryId
   }
 
-  func read() async throws -> SFTPAttributes? {
+  func read() async throws(SSHError) -> SFTPAttributes? {
     while true {
       guard
         let attrs = try await session.readDirectory(
@@ -38,7 +38,7 @@ public struct SFTPDirectory: Sendable, AsyncSequence {
       self.directory = directory
     }
 
-    public func next() async throws -> SFTPAttributes? {
+    public func next() async throws(SSHError) -> SFTPAttributes? {
       try await directory.read()
     }
   }

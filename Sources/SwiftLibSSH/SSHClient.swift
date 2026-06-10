@@ -7,49 +7,49 @@ public struct SSHClient: Sendable {
 
   private let session: SSHSession
 
-  private init(host: String, port: UInt16 = 22, timeout: UInt = 60) async throws {
+  private init(host: String, port: UInt16 = 22, timeout: UInt = 60) async throws(SSHError) {
     self.session = try SSHSession()
     try await session.setHost(host)
     try await session.setPort(UInt32(port))
     try await session.setTimeout(timeout)
   }
 
-  private func connect() async throws {
+  private func connect() async throws(SSHError) {
     try await session.connect()
   }
 
-  private func authenticate(user: String) async throws {
+  private func authenticate(user: String) async throws(SSHError) {
     try await session.authenticate(user: user)
   }
 
-  private func authenticate(user: String, password: String) async throws {
+  private func authenticate(user: String, password: String) async throws(SSHError) {
     try await session.authenticate(user: user, password: password)
   }
 
   private func authenticate(
     user: String, privateKeyURL: URL, passphrase: String? = nil
-  ) async throws {
+  ) async throws(SSHError) {
     guard FileManager.default.fileExists(atPath: privateKeyURL.path) else {
       throw SSHError.authenticationFailed(message: "Private key file not found: \(privateKeyURL)")
     }
     try await session.withImportedPrivateKey(from: privateKeyURL, passphrase: passphrase) {
-      privateKey in
+      privateKey throws(SSHError) in
       try await privateKey.authenticate(user: user)
     }
   }
 
   private func authenticate(
     user: String, base64PrivateKey: String, passphrase: String? = nil
-  ) async throws {
+  ) async throws(SSHError) {
     try await session.withImportedPrivateKey(from: base64PrivateKey, passphrase: passphrase) {
-      base64PrivateKey in
+      base64PrivateKey throws(SSHError) in
       try await base64PrivateKey.authenticate(user: user)
     }
   }
 
   public static func connect(
     host: String, port: UInt16 = 22, timeout: UInt = 60, user: String
-  ) async throws -> SSHClient {
+  ) async throws(SSHError) -> SSHClient {
     let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(user: user)
@@ -58,7 +58,7 @@ public struct SSHClient: Sendable {
 
   public static func connect(
     host: String, port: UInt16 = 22, timeout: UInt = 60, user: String, password: String
-  ) async throws -> SSHClient {
+  ) async throws(SSHError) -> SSHClient {
     let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(user: user, password: password)
@@ -68,9 +68,7 @@ public struct SSHClient: Sendable {
   public static func connect(
     host: String, port: UInt16 = 22, timeout: UInt = 60,
     user: String, privateKeyURL: URL, passphrase: String? = nil
-  ) async throws
-    -> SSHClient
-  {
+  ) async throws(SSHError) -> SSHClient {
     let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(
@@ -81,9 +79,7 @@ public struct SSHClient: Sendable {
   public static func connect(
     host: String, port: UInt16 = 22, timeout: UInt = 60,
     user: String, base64PrivateKey: String, passphrase: String? = nil
-  ) async throws
-    -> SSHClient
-  {
+  ) async throws(SSHError) -> SSHClient {
     let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
     try await client.authenticate(
@@ -173,13 +169,13 @@ public struct SSHClient: Sendable {
     }
   }
 
-  func isConnectedOrThrow() async throws {
+  func isConnectedOrThrow() async throws(SSHError) {
     if await !isConnected {
       throw SSHError.connectionFailed(message: "SSH session is closed")
     }
   }
 
-  public func sftp() async throws -> SFTPClient {
+  public func sftp() async throws(SSHError) -> SFTPClient {
     try await session.createSftp()
   }
 
@@ -196,13 +192,26 @@ public struct SSHClient: Sendable {
   }
 
   @discardableResult
-  public func execute(_ command: String) async throws -> CommandResult {
-    return try await execute(command) { channel in
+  public func execute(_ command: String) async throws(SSHError) -> CommandResult {
+    return try await execute(command) {
+      channel throws(SSHError) in
       return try await (
         channel.exitStatus(),
         channel.read(from: .stdout),
         channel.read(from: .stderr)
       )
+    }
+  }
+
+  func execute<T: Sendable>(
+    _ command: String,
+    perform body: @Sendable (SSHSessionChannel) async throws(SSHError) -> T
+  ) async throws(SSHError) -> T {
+    try await isConnectedOrThrow()
+
+    return try await session.withSessionChannel { channel throws(SSHError) in
+      try await channel.execute(command: command)
+      return try await body(channel)
     }
   }
 

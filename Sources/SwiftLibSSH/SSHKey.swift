@@ -9,7 +9,7 @@ public struct SSHKey: Sendable {
     self.id = id
   }
 
-  public func authenticate(user: String) async throws {
+  public func authenticate(user: String) async throws(SSHError) {
     try await session.authenticateWithPublicKey(id: id, user: user)
   }
 

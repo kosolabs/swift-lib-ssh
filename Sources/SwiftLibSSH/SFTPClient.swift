@@ -15,11 +15,13 @@ public struct SFTPClient: Sendable {
     await session.freeSftp(id: id)
   }
 
-  public func createDirectory(at path: String, mode: mode_t = 0o755) async throws {
+  public func createDirectory(at path: String, mode: mode_t = 0o755) async throws(SSHError) {
     try await session.mkdir(id: id, at: path, mode: mode)
   }
 
-  public func createDirectoryRecursively(at path: String, mode: mode_t = 0o755) async throws {
+  public func createDirectoryRecursively(
+    at path: String, mode: mode_t = 0o755
+  ) async throws(SSHError) {
     let isAbsolute = path.hasPrefix("/")
     let components = path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
     for i in components.indices {
@@ -27,12 +29,12 @@ public struct SFTPClient: Sendable {
       do {
         try await createDirectory(at: partial, mode: mode)
       } catch {
-        guard (error as? SSHError)?.sftpError == .fileAlreadyExists else { throw error }
+        guard error.sftpError == .fileAlreadyExists else { throw error }
       }
     }
   }
 
-  public func removeDirectory(at path: String) async throws {
+  public func removeDirectory(at path: String) async throws(SSHError) {
     try await session.rmdir(id: id, at: path)
   }
 
@@ -59,7 +61,7 @@ public struct SFTPClient: Sendable {
 
   public func attributes(
     at path: String, followSymlinks: Bool = true
-  ) async throws -> SFTPAttributes {
+  ) async throws(SSHError) -> SFTPAttributes {
     if followSymlinks {
       try await session.stat(id: id, path: path)
     } else {
@@ -75,7 +77,7 @@ public struct SFTPClient: Sendable {
     permissions: mode_t? = nil,
     accessTime: Date? = nil,
     modifyTime: Date? = nil
-  ) async throws {
+  ) async throws(SSHError) {
     try await session.setStat(
       id: id,
       path: path,
@@ -88,19 +90,19 @@ public struct SFTPClient: Sendable {
     )
   }
 
-  public func move(from oldPath: String, to newPath: String) async throws {
+  public func move(from oldPath: String, to newPath: String) async throws(SSHError) {
     try await session.rename(id: id, from: oldPath, to: newPath)
   }
 
-  public func removeFile(at path: String) async throws {
+  public func removeFile(at path: String) async throws(SSHError) {
     try await session.unlink(id: id, path: path)
   }
 
-  public func symlinkTarget(at path: String) async throws -> String {
+  public func symlinkTarget(at path: String) async throws(SSHError) -> String {
     try await session.readlink(id: id, path: path)
   }
 
-  public func createSymlink(to target: String, at dest: String) async throws {
+  public func createSymlink(to target: String, at dest: String) async throws(SSHError) {
     try await session.symlink(id: id, target: target, dest: dest)
   }
 

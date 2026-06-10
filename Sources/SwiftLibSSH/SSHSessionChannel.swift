@@ -28,7 +28,7 @@ public struct SSHChannelData: Sendable, AsyncSequence {
       self.buffer = Data(count: length)
     }
 
-    public func next() async throws -> Data? {
+    public func next() async throws(SSHError) -> Data? {
       if Task.isCancelled {
         return nil
       }
@@ -51,21 +51,23 @@ public struct SSHSessionChannel: Sendable {
     await session.closeChannel(id: id)
   }
 
-  public func execute(command: String) async throws {
+  public func execute(command: String) async throws(SSHError) {
     try await session.execute(onChannel: id, command: command)
   }
 
-  public func exitStatus() async throws -> SSHExitStatus {
+  public func exitStatus() async throws(SSHError) -> SSHExitStatus {
     try await session.exitState(onChannel: id)
   }
 
-  func read(into buffer: inout Data, length: Int, stream: StreamType) async throws -> Data? {
+  func read(
+    into buffer: inout Data, length: Int, stream: StreamType
+  ) async throws(SSHError) -> Data? {
     let bytesRead = try await session.readChannel(
       id: id, into: &buffer, length: length, stream: stream)
     return bytesRead == 0 ? nil : buffer.prefix(bytesRead)
   }
 
-  public func read(from: StreamType) async throws -> Data {
+  public func read(from: StreamType) async throws(SSHError) -> Data {
     var output = Data()
     for try await data in stream(from: from) {
       output.append(data)
