@@ -36,7 +36,7 @@ public class SFTPReader: AsyncSequence {
       self.bufferSize = bufferSize
     }
 
-    public func next() async throws -> Data? {
+    public func next() async throws(SSHError) -> Data? {
       if Task.isCancelled {
         return nil
       }
@@ -73,7 +73,7 @@ public class SFTPWriter {
     self.file = file
   }
 
-  public func write(data: Data) async throws {
+  public func write(data: Data) async throws(SSHError) {
     while queue.count >= SFTPWriter.QueueSize {
       try await queue.removeFirst().flush()
     }
@@ -81,7 +81,7 @@ public class SFTPWriter {
     queue.append(aio)
   }
 
-  public func flush() async throws {
+  public func flush() async throws(SSHError) {
     while !queue.isEmpty {
       try await queue.removeFirst().flush()
     }
@@ -103,18 +103,18 @@ public struct SFTPFile: Sendable {
     await session.closeFile(id: id)
   }
 
-  public func attributes() async throws -> SFTPAttributes {
+  public func attributes() async throws(SSHError) -> SFTPAttributes {
     try await session.statFile(id: id)
   }
 
-  func seek(offset: UInt64) async throws {
+  func seek(offset: UInt64) async throws(SSHError) {
     try await session.seekFile(id: id, offset: offset)
   }
 
   public func read(
     range: Range<UInt64>,
     bufferSize: UInt64 = SFTPLimits.defaultBufferSize
-  ) async throws -> Data {
+  ) async throws(SSHError) -> Data {
     try await read(
       offset: range.lowerBound, length: range.upperBound - range.lowerBound,
       bufferSize: bufferSize
@@ -124,7 +124,7 @@ public struct SFTPFile: Sendable {
   public func read(
     offset: UInt64 = 0, length: UInt64 = UInt64.max,
     bufferSize: UInt64 = SFTPLimits.defaultBufferSize
-  ) async throws -> Data {
+  ) async throws(SSHError) -> Data {
     let bufferSize = limits.readLength(for: bufferSize)
     try await seek(offset: offset)
     var result = Data()
@@ -140,7 +140,7 @@ public struct SFTPFile: Sendable {
 
   public func write(
     data: Data, bufferSize: UInt64 = SFTPLimits.defaultBufferSize
-  ) async throws {
+  ) async throws(SSHError) {
     let bufferSize = Int(limits.writeLength(for: bufferSize))
     for curr in stride(from: 0, to: data.count, by: bufferSize) {
       let next = min(data.count, curr + bufferSize)
@@ -154,7 +154,7 @@ public struct SFTPFile: Sendable {
     }
   }
 
-  func beginRead(length: Int) async throws -> SFTPAioReadContext {
+  func beginRead(length: Int) async throws(SSHError) -> SFTPAioReadContext {
     try await session.beginRead(id: id, length: length)
   }
 
@@ -178,7 +178,7 @@ public struct SFTPFile: Sendable {
     return SFTPReader(file: self, offset: offset, length: length, bufferSize: bufferSize)
   }
 
-  func beginWrite(data: Data) async throws -> SFTPAioWriteContext {
+  func beginWrite(data: Data) async throws(SSHError) -> SFTPAioWriteContext {
     try await session.beginWrite(id: id, buffer: data)
   }
 
