@@ -1,7 +1,7 @@
 public struct SSHExitStatus: Codable, Sendable {
-  let code: UInt8?
-  let signal: String?
-  let coreDumped: Bool
+  public let code: UInt8?
+  public let signal: String?
+  public let coreDumped: Bool
 
   static func from(
     code: Int32, signal: UnsafeMutablePointer<CChar>?, coreDumped: Int32

@@ -3,7 +3,11 @@ import Dispatch
 import Foundation
 
 public struct SSHClient: Sendable {
-  public typealias CommandResult = (status: SSHExitStatus, stdout: Data, stderr: Data)
+  public struct CommandResult: Sendable {
+    public let status: SSHExitStatus
+    public let stdout: Data
+    public let stderr: Data
+  }
 
   private let session: SSHSession
 
@@ -195,10 +199,10 @@ public struct SSHClient: Sendable {
   public func execute(_ command: String) async throws(SSHError) -> CommandResult {
     return try await execute(command) {
       channel throws(SSHError) in
-      return try await (
-        channel.exitStatus(),
-        channel.read(from: .stdout),
-        channel.read(from: .stderr)
+      return try await CommandResult(
+        status: channel.exitStatus(),
+        stdout: channel.read(from: .stdout),
+        stderr: channel.read(from: .stderr)
       )
     }
   }

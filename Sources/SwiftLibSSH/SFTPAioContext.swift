@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SFTPAioReadContext: Sendable {
+struct SFTPAioReadContext: Sendable {
   private let session: SSHSession
   private let id: SFTPAioID
   private let length: Int
@@ -16,7 +16,7 @@ public struct SFTPAioReadContext: Sendable {
   }
 }
 
-public struct SFTPAioWriteContext: Sendable {
+struct SFTPAioWriteContext: Sendable {
   private let session: SSHSession
   private let id: SFTPAioID
   private let length: Int
