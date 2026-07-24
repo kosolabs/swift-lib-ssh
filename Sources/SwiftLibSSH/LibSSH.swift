@@ -39,28 +39,28 @@ public enum StreamType: Int32, Sendable {
 
 // MARK: - Identifiers
 
-public struct SSHKeyID: Hashable, Sendable {
+struct SSHKeyID: Hashable, Sendable {
   let uuid = UUID()
 }
 
-public struct SSHChannelID: Hashable, Sendable {
+struct SSHChannelID: Hashable, Sendable {
   let uuid = UUID()
 }
 
-public struct SFTPClientID: Hashable, Sendable {
+struct SFTPClientID: Hashable, Sendable {
   let uuid = UUID()
 }
 
-public struct SFTPFileID: Hashable, Sendable {
+struct SFTPFileID: Hashable, Sendable {
   let sftpId: SFTPClientID
   let uuid = UUID()
 }
 
-public struct SFTPDirectoryID: Hashable, Sendable {
+struct SFTPDirectoryID: Hashable, Sendable {
   let uuid = UUID()
 }
 
-public struct SFTPAioID: Hashable, Sendable {
+struct SFTPAioID: Hashable, Sendable {
   let fileId: SFTPFileID
   let uuid = UUID()
 
