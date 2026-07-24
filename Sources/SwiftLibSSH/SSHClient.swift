@@ -2,6 +2,13 @@ import CLibSSH
 import Dispatch
 import Foundation
 
+public enum SSHAuthMethod: Sendable {
+  case none
+  case password(String)
+  case privateKey(URL, passphrase: String? = nil)
+  case privateKeyData(base64: String, passphrase: String? = nil)
+}
+
 public struct SSHClient: Sendable {
   public struct CommandResult: Sendable {
     public let status: SSHExitStatus
@@ -22,140 +29,49 @@ public struct SSHClient: Sendable {
     try await session.connect()
   }
 
-  private func authenticate(user: String) async throws(SSHError) {
-    try await session.authenticate(user: user)
-  }
+  private func authenticate(user: String, auth: SSHAuthMethod) async throws(SSHError) {
+    switch auth {
+    case .none:
+      try await session.authenticate(user: user)
 
-  private func authenticate(user: String, password: String) async throws(SSHError) {
-    try await session.authenticate(user: user, password: password)
-  }
+    case .password(let password):
+      try await session.authenticate(user: user, password: password)
 
-  private func authenticate(
-    user: String, privateKeyURL: URL, passphrase: String? = nil
-  ) async throws(SSHError) {
-    guard FileManager.default.fileExists(atPath: privateKeyURL.path) else {
-      throw SSHError.authenticationFailed(message: "Private key file not found: \(privateKeyURL)")
+    case .privateKey(let url, let passphrase):
+      guard FileManager.default.fileExists(atPath: url.path) else {
+        throw SSHError.authenticationFailed(message: "Private key file not found: \(url)")
+      }
+      try await session.withImportedPrivateKey(from: url, passphrase: passphrase) {
+        privateKey throws(SSHError) in
+        try await privateKey.authenticate(user: user)
+      }
+
+    case .privateKeyData(let base64, let passphrase):
+      try await session.withImportedPrivateKey(from: base64, passphrase: passphrase) {
+        privateKey throws(SSHError) in
+        try await privateKey.authenticate(user: user)
+      }
     }
-    try await session.withImportedPrivateKey(from: privateKeyURL, passphrase: passphrase) {
-      privateKey throws(SSHError) in
-      try await privateKey.authenticate(user: user)
-    }
-  }
-
-  private func authenticate(
-    user: String, base64PrivateKey: String, passphrase: String? = nil
-  ) async throws(SSHError) {
-    try await session.withImportedPrivateKey(from: base64PrivateKey, passphrase: passphrase) {
-      base64PrivateKey throws(SSHError) in
-      try await base64PrivateKey.authenticate(user: user)
-    }
-  }
-
-  public static func connect(
-    host: String, port: UInt16 = 22, timeout: UInt = 60, user: String
-  ) async throws(SSHError) -> SSHClient {
-    let client = try await SSHClient(host: host, port: port, timeout: timeout)
-    try await client.connect()
-    try await client.authenticate(user: user)
-    return client
-  }
-
-  public static func connect(
-    host: String, port: UInt16 = 22, timeout: UInt = 60, user: String, password: String
-  ) async throws(SSHError) -> SSHClient {
-    let client = try await SSHClient(host: host, port: port, timeout: timeout)
-    try await client.connect()
-    try await client.authenticate(user: user, password: password)
-    return client
   }
 
   public static func connect(
     host: String, port: UInt16 = 22, timeout: UInt = 60,
-    user: String, privateKeyURL: URL, passphrase: String? = nil
+    user: String, auth: SSHAuthMethod = .none
   ) async throws(SSHError) -> SSHClient {
     let client = try await SSHClient(host: host, port: port, timeout: timeout)
     try await client.connect()
-    try await client.authenticate(
-      user: user, privateKeyURL: privateKeyURL, passphrase: passphrase)
-    return client
-  }
-
-  public static func connect(
-    host: String, port: UInt16 = 22, timeout: UInt = 60,
-    user: String, base64PrivateKey: String, passphrase: String? = nil
-  ) async throws(SSHError) -> SSHClient {
-    let client = try await SSHClient(host: host, port: port, timeout: timeout)
-    try await client.connect()
-    try await client.authenticate(
-      user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase)
+    try await client.authenticate(user: user, auth: auth)
     return client
   }
 
   @discardableResult
   public static func withAuthenticatedClient<T: Sendable>(
-    host: String, port: UInt16 = 22, timeout: UInt = 60, user: String,
-    perform body: @Sendable (SSHClient) async throws -> T
-  ) async throws -> T {
-    let client = try await connect(
-      host: host, port: port, timeout: timeout, user: user
-    )
-    do {
-      let result = try await body(client)
-      await client.close()
-      return result
-    } catch {
-      await client.close()
-      throw error
-    }
-  }
-
-  @discardableResult
-  public static func withAuthenticatedClient<T: Sendable>(
-    host: String, port: UInt16 = 22, timeout: UInt = 60, user: String, password: String,
-    perform body: @Sendable (SSHClient) async throws -> T
-  ) async throws -> T {
-    let client = try await connect(
-      host: host, port: port, timeout: timeout, user: user, password: password
-    )
-    do {
-      let result = try await body(client)
-      await client.close()
-      return result
-    } catch {
-      await client.close()
-      throw error
-    }
-  }
-
-  @discardableResult
-  public static func withAuthenticatedClient<T: Sendable>(
     host: String, port: UInt16 = 22, timeout: UInt = 60,
-    user: String, privateKeyURL: URL, passphrase: String? = nil,
+    user: String, auth: SSHAuthMethod = .none,
     perform body: @Sendable (SSHClient) async throws -> T
   ) async throws -> T {
     let client = try await connect(
-      host: host, port: port, timeout: timeout,
-      user: user, privateKeyURL: privateKeyURL, passphrase: passphrase
-    )
-    do {
-      let result = try await body(client)
-      await client.close()
-      return result
-    } catch {
-      await client.close()
-      throw error
-    }
-  }
-
-  @discardableResult
-  public static func withAuthenticatedClient<T: Sendable>(
-    host: String, port: UInt16 = 22, timeout: UInt = 60,
-    user: String, base64PrivateKey: String, passphrase: String? = nil,
-    perform body: @Sendable (SSHClient) async throws -> T
-  ) async throws -> T {
-    let client = try await connect(
-      host: host, port: port, timeout: timeout,
-      user: user, base64PrivateKey: base64PrivateKey, passphrase: passphrase
+      host: host, port: port, timeout: timeout, user: user, auth: auth
     )
     do {
       let result = try await body(client)
