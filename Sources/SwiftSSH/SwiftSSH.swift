@@ -10,13 +10,16 @@ struct SSHConfig: ParsableArguments {
   @Option(name: .shortAndLong, help: "Identity file to use as the private key")
   var identityFile: String
 
+  @Option(name: .shortAndLong, help: "The port to connect to on the remote host")
+  var port: UInt16 = 22
+
   @Argument(help: "The remote host to connect to")
   var host: String
 
   func connect() async throws -> (ssh: SSHClient, sftp: SFTPClient) {
     let ssh = try await SSHClient.connect(
-      host: host, user: loginName,
-      privateKeyURL: URL(fileURLWithPath: identityFile)
+      host: host, port: port, user: loginName,
+      auth: .privateKey(URL(fileURLWithPath: identityFile))
     )
 
     let sftp = try await ssh.sftp()

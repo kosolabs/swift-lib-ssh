@@ -242,10 +242,6 @@ final actor SSHSession {
     try validate(ssh_connect(session))
   }
 
-  func userauthAgent(_ user: String) throws(SSHError) {
-    try validate(ssh_userauth_agent(session, user))
-  }
-
   func authenticate(user: String) throws(SSHError) {
     try validate(ssh_userauth_none(session, user))
   }

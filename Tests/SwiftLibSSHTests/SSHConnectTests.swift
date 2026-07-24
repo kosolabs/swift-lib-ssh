@@ -41,7 +41,7 @@ private var publicKey: URL {
 
 func client() async throws -> SSHClient {
   return try await SSHClient.connect(
-    host: host, port: port, user: user, password: password)
+    host: host, port: port, user: user, auth: .password(password))
 }
 
 @discardableResult
@@ -62,7 +62,7 @@ func withAuthenticatedClient<T: Sendable>(
 struct SSHConnectTests {
   @Test func passwordAuthenticationSucceeds() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, password: password
+      host: host, port: port, user: user, auth: .password(password)
     ) { ssh in
       let proc = try await ssh.execute("whoami")
       let actual = try proc.stdout
@@ -77,7 +77,7 @@ struct SSHConnectTests {
 
   @Test func privateKeyFileAuthenticationSucceeds() async throws {
     try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, privateKeyURL: privateKey
+      host: host, port: port, user: user, auth: .privateKey(privateKey)
     ) { ssh in
 
       let proc = try await ssh.execute("whoami")
@@ -94,7 +94,7 @@ struct SSHConnectTests {
   @Test func base64PrivateKeyAuthenticationSucceeds() async throws {
     let privateKey = try String(contentsOf: privateKey, encoding: .utf8)
     try await SSHClient.withAuthenticatedClient(
-      host: host, port: port, user: user, base64PrivateKey: privateKey
+      host: host, port: port, user: user, auth: .privateKeyData(base64: privateKey)
     ) { ssh in
 
       let proc = try await ssh.execute("whoami")
@@ -118,7 +118,7 @@ struct SSHConnectTests {
 
   @Test func badPasswordThrowsAuthenticationFailed() async throws {
     await #expect {
-      try await SSHClient.connect(host: host, port: port, user: user, password: "bad")
+      try await SSHClient.connect(host: host, port: port, user: user, auth: .password("bad"))
     } throws: { error in
       (error as? SSHError)?.isAuthenticationFailed == true
     }
@@ -127,7 +127,8 @@ struct SSHConnectTests {
   @Test func missingPrivateKeyThrowsAuthenticationFailed() async throws {
     await #expect {
       try await SSHClient.connect(
-        host: host, port: port, user: user, privateKeyURL: URL(filePath: "/tmp/missing_pk"))
+        host: host, port: port, user: user,
+        auth: .privateKey(URL(filePath: "/tmp/missing_pk")))
     } throws: { error in
       (error as? SSHError)?.isAuthenticationFailed == true
     }
@@ -135,7 +136,8 @@ struct SSHConnectTests {
 
   @Test func invalidPrivateKeyThrowsAuthenticationFailed() async throws {
     await #expect {
-      try await SSHClient.connect(host: host, port: port, user: user, privateKeyURL: publicKey)
+      try await SSHClient.connect(
+        host: host, port: port, user: user, auth: .privateKey(publicKey))
     } throws: { error in
       (error as? SSHError)?.isAuthenticationFailed == true
     }
@@ -143,7 +145,8 @@ struct SSHConnectTests {
 
   @Test func invalidBase64PrivateKeyThrowsAuthenticationFailed() async throws {
     await #expect {
-      try await SSHClient.connect(host: host, port: port, user: user, base64PrivateKey: "")
+      try await SSHClient.connect(
+        host: host, port: port, user: user, auth: .privateKeyData(base64: ""))
     } throws: { error in
       (error as? SSHError)?.isAuthenticationFailed == true
     }
