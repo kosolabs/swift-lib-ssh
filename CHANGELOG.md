@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.19.0...v1.20.0) (2026-07-24)
+
+
+### Features
+
+* simplify connect and withAuthenticatedClient to use SSHAuthMethod enum ([#142](https://github.com/kosolabs/swift-lib-ssh/issues/142)) ([bc66cf2](https://github.com/kosolabs/swift-lib-ssh/commit/bc66cf23f9c509dc3822e83d757530dec3c199ab))
+
 ## [1.19.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.18.0...v1.19.0) (2026-06-10)
 
 
