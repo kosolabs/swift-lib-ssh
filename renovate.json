@@ -4,9 +4,8 @@
     "config:recommended",
     "group:all"
   ],
-  "timezone": "America/Los_Angeles",
   "schedule": [
-    "before 10am on Monday"
+    "at any time"
   ],
   "automerge": true,
   "automergeType": "branch",
@@ -20,6 +19,50 @@
         "digest"
       ],
       "automerge": true
+    },
+    {
+      "groupName": "CLibSSH native dependencies",
+      "matchDepNames": [
+        "openssl/openssl",
+        "libssh/libssh-mirror"
+      ],
+      "automerge": false,
+      "postUpgradeTasks": {
+        "commands": [
+          "./build.sh"
+        ],
+        "executionMode": "branch",
+        "fileFilters": [
+          "build.sh",
+          "Sources/CLibSSH/**"
+        ]
+      }
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^build\\.sh$/"
+      ],
+      "matchStrings": [
+        "export OPENSSL=openssl-(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "openssl/openssl",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^openssl-(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^build\\.sh$/"
+      ],
+      "matchStrings": [
+        "export LIBSSH=libssh-(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "libssh/libssh-mirror",
+      "datasourceTemplate": "gitlab-tags",
+      "extractVersionTemplate": "^libssh-(?<version>.*)$"
     }
   ]
 }
