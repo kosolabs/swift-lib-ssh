@@ -32,5 +32,5 @@ jobs:
           RENOVATE_TOKEN: ${{ steps.app.outputs.token }}
           RENOVATE_PLATFORM: github
           RENOVATE_ALLOWED_COMMANDS: '["^\\./build\\.sh$"]'
-          LOG_LEVEL: info
+          LOG_LEVEL: debug
         run: npx --yes renovate@44 ${{ github.repository }}
