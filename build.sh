@@ -4,7 +4,7 @@ export OPENSSL=openssl-3.6.1   # https://github.com/openssl/openssl/releases
 export LIBSSH=libssh-0.12.0    # https://www.libssh.org/files/
 export MACOSX_DEPLOYMENT_TARGET=15.0
 
-set -e
+set -euo pipefail
 
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 
