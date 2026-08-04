@@ -11,7 +11,7 @@ jobs:
     name: Renovate
     runs-on: macos-latest
     environment:
-      name: swift-lib-ssh-release
+      name: swift-lib-ssh-renovate
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -24,13 +24,13 @@ jobs:
       - id: app
         uses: actions/create-github-app-token@v3.2.0
         with:
-          client-id: Iv23liXdlxbyAb7jyk9P
-          private-key: ${{ secrets.RELEASER_PRIVATE_KEY }}
+          client-id: Iv23liXmycC1xcoZVDSz
+          private-key: ${{ secrets.RENOVATE_PRIVATE_KEY }}
 
       - name: Run Renovate
         env:
           RENOVATE_TOKEN: ${{ steps.app.outputs.token }}
           RENOVATE_PLATFORM: github
           RENOVATE_ALLOWED_COMMANDS: '["^\\./build\\.sh$"]'
-          LOG_LEVEL: debug
+          LOG_LEVEL: info
         run: npx --yes renovate@44 ${{ github.repository }}
