@@ -6,6 +6,7 @@ export MACOSX_DEPLOYMENT_TARGET=15.0
 
 set -euo pipefail
 
+export KEYROOT=$(realpath keys)
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 
 rm -rf .build/clibssh
@@ -16,6 +17,8 @@ export BUILD=$(realpath .build/clibssh)
 
 cd $BUILD/src
 curl -LO https://github.com/openssl/openssl/releases/download/$OPENSSL/$OPENSSL.tar.gz
+curl -LO https://github.com/openssl/openssl/releases/download/$OPENSSL/$OPENSSL.tar.gz.asc
+gpgv --keyring $KEYROOT/openssl.gpg $OPENSSL.tar.gz.asc $OPENSSL.tar.gz
 tar xzf $OPENSSL.tar.gz
 
 # Build OpenSSL for arm64
@@ -69,6 +72,8 @@ cp -R $BUILD/install/openssl-arm64/include/openssl \
 cd $BUILD/src
 LIBSSH_SERIES=$(echo $LIBSSH | sed -E 's/libssh-([0-9]+\.[0-9]+).*/\1/')
 curl -LO https://www.libssh.org/files/$LIBSSH_SERIES/$LIBSSH.tar.xz
+curl -LO https://www.libssh.org/files/$LIBSSH_SERIES/$LIBSSH.tar.xz.asc
+gpgv --keyring $KEYROOT/libssh.gpg $LIBSSH.tar.xz.asc $LIBSSH.tar.xz
 tar xzf $LIBSSH.tar.xz
 
 # Build libssh for arm64
