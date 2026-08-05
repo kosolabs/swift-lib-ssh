@@ -7,6 +7,7 @@
   "schedule": [
     "at any time"
   ],
+  "semanticCommitType": "fix",
   "automerge": true,
   "automergeType": "branch",
   "platformAutomerge": true,
@@ -26,7 +27,7 @@
         "openssl/openssl",
         "libssh/libssh-mirror"
       ],
-      "automerge": false,
+      "automerge": true,
       "postUpgradeTasks": {
         "commands": [
           "./build.sh"
