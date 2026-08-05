@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.1](https://github.com/kosolabs/swift-lib-ssh/compare/v1.20.0...v1.20.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* renovate should update deps with 'fix' so that a release is triggered ([#156](https://github.com/kosolabs/swift-lib-ssh/issues/156)) ([56b6d00](https://github.com/kosolabs/swift-lib-ssh/commit/56b6d0072459fadd4816a986ce2840ddf93ee437))
+
 ## [1.20.0](https://github.com/kosolabs/swift-lib-ssh/compare/v1.19.0...v1.20.0) (2026-07-24)
 
 
